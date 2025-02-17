@@ -1,0 +1,43 @@
+Package: OncoDatasusR
+Title: Download and Process Oncology 'DataSUS' Files
+Version: 0.1.0.9000
+Authors@R: 
+    c(
+    person(given = "Patricia", family = "Ziegelmann", email = "patriciakz99@gmail.com", role = c("aut", "cre"),
+            comment = c(ORCID = "0000-0002-2851-2011")),
+    person(given = "Marcelo", family = "Borges", email =  "meborges.b@gmail.com", role = c("aut"),
+            comment = c(ORCID = "0000-0002-5807-3064")),
+    person(given = "Cintia", family = "Scala", email =  "cintia.scala@roche.com", role = c("aut"),
+            comment = c(ORCID = "0000-0001-7385-5729")),
+    person(given ="Nelson", family = "Correa", email =  "nelson.correa@roche.com", role = c("ctb"),
+            comment = c(ORCID = "0000-0002-8106-8888")),
+    person(given = "Produtos Roche Químicos e Farmacêuticos–Brasil.", role = c("cph","fnd"))
+    )
+URL: https://github.com/PatriciaKZ/OncoDatasusR
+BugReports: https://github.com/PatriciaKZ/OncoDatasusR/issues
+Description: Downloads data files related to oncologic treatment from the 'DataSUS' at <ftp.datasus.gov.br> and processes the data for patient counting.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    data.table,
+    dplyr,
+    janitor,
+    lubridate,
+    magrittr,
+    RCurl,
+    read.dbc,
+    readr,
+    retry,
+    rlang,
+    scales
+Remotes: 
+    danicat/read.dbc
+LazyData: true
+Depends: 
+    R (>= 3.5.0)
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr

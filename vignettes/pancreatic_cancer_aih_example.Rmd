@@ -1,0 +1,546 @@
+---
+title: "Pancreatic cancer: AIH example"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Pancreatic cancer: AIH example}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE,
+                      comment = "#>",
+                      eval = FALSE)
+library(tidyverse)
+
+# To run all analysis change "eval = FALSE" in line 14 to "eval = TRUE" e follow all steps bellow.
+```
+
+## 1. About this Vignette
+
+This vignette was written to allow the reader to replicate the Pancreatic cancer Example (paper in *peer review*)
+without having to download data from DATASUS and to obtain identical results. 
+To do this, it is necessary to load the RData file available in [GitHub](https://github.com/PatriciaKZ/OncoDatasusR/tree/main/vignettes/exported_data). 
+
+```{r, include=FALSE, eval = TRUE}
+load("exported_data/aih_pancreas_analysis.RData")
+```
+
+## 2. Introduction to OncoDatasusR
+
+The `OncoDatasusR` package provides functions to download and process data from the Department of Informatics of the Unified Health System 
+(DATASUS), which is the main public health database in Brazil. Along with the process of creating a dataset with unique patients, this package 
+also provides some information to evaluate data quality. Data quality evaluation is a important step since the proposed patient counting 
+methodology may face inaccuracies due to data limitations and the deduplication process. Despite our attempts to reduce the number of patients 
+counted more than once, issues such as incomplete or incorrect records may influence results. A detailed step-by-step analysis of the creation 
+of the final file is essential to better understand the limitations and support accurate interpretations of results.
+
+This vignette shows how to use the package to analyze pancreatic cancer data. On this example, we will download and process data of hospital 
+admissions (AIH - Autorização de Internações hospitalares) of the Hospital Information System (SIH) to count number of patients with 
+pancreatic cancer who underwent surgery in Brazilian public health system.
+
+## 3. Prepare environment
+
+### Load required packages
+
+```{r setup}
+library(OncoDatasusR)
+library(tidyverse)
+```
+
+## 4. Download data of hospital admissions (AIH)
+
+The first step involves extracting data directly from the DATASUS website using File Transfer Protocol (ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Dados/). 
+This will be done using the get_datasus function which uses the functions detailed below.
+
++ retrieve_filelist: search in the DATASUS ftp all the desired files and years of interest that are available for download.
+
++ download_datasus: extract the files by Federation Unit/year of interest and save them in the ‘datasus_files’ folder.
+
++ fetch_files: creates a list with the names of the ‘.csv files’ saved in the folder ‘datasus_files’
+
++ merge_datasus: merges all .csv files into a single file. 
+
+The database = "RD" shows that AIH data are going to be extracted.
+
+```{r download_data}
+get_datasus(
+  icd_list = "C53",
+  fu_list = "all",
+  export_file_code = "pancreas",
+  database = "RD",
+  first_year = 2008,
+  last_year = 2023,
+  output_dir = NULL
+)
+#> ...
+#> trying URL 'ftp://ftp.datasus.gov.br/dissemin/publicos/SIHSUS/200801_/Dados/RDTO2312.dbc'
+#> Content type 'unknown' length 114153 bytes (111 KB)
+#> Reading: datasus_files/RD_AC_pancreas_2008_2023.csv
+#> ...
+#> Writing: datasus_files/RD_pancreas_2008_2023_full.csv
+#> File saved successfully.
+```
+
+## 5. SIH-SUS Data Preparation
+
+The second step involves the creation of a database with unique patients. It will be done using the extracted data and following rules 
+established for this purpose. Quality assessment is available to support subsequent analyses.
+
+### 5.1. Read AIH files
+
+The function bellow reads the AIH file that was extracted and the output will be saved in the "datasus_files" folder if dir=NULL or in the 
+folder defined by the 'dir' argument.
+
+From all the variables available in the SIH database (see PAPER), the function will select the ones of interest. By default 14 variables will 
+be retrieved:
+
+* DIAG_PRINC (complete ICD with four digits),
+* DT_INTER (date of hospital admission),
+* NASC (patient date of birth),
+* CEP (zip code of the patient’s address),
+* SEXO (sex),
+* PROC_REA (type of procedure performed)
+* IDADE (age at attendance with 2 digits according to the DATASUS age code), 
+* COD_IDADE (age code, as defined by the DATASUS), 
+* MUNIC_RES (code of the city of the residence of the patient),
+* MUNIC_MOV (code of the city of the hospital)
+* IDADE_ANOS (calculated using date of birth and date of hospital admission)
+* CID (ICD with the first three digits),
+* CEP5 (the first five digits of CEP)
+* ano_internacao (year of hospital admission).
+
+The 'proc_code' argument can be used to choose the type of procedure of interest.For this analysis we chose only surgical procedures 
+(proc_code = "04"). The values of the proc_code parameter are defined by the group of procedures of [SIGTAP table](http://sigtap.datasus.gov.br/tabela-unificada/app/sec/inicio.jsp) 
+(first two digits of the procedure code). 
+
+The output is a list with:
+
+* The SIH dataframe (where each line will display information referring to one admission),
+* The diag_list list that will have some consistency check information (see PAPER).
+
+```{r read_files}
+aih <- read_sih(
+  dir = NULL,
+  filename = "RD_pancreas_2008_2023_full.csv",
+  first_year = 2008,
+  last_year = 2023,
+  proc_code = "04",
+  run_diagnostics = TRUE,
+  export_procedure_table = TRUE
+)
+#> Writing: datasus_files/SIH_2008_2023_procedures.csv
+
+str(aih, max.level = 1)
+#>  List of 2
+#>   $ SIH      :'data.frame':      40466 obs. of  14 variables:
+#>   $ diag_list:List of 5
+```
+
+#### 5.1.1. Data Quality Information
+
+The codes below show the number of downloaded AIH (initial) and the number of AIH after filtering by year of attendance (final).
+
+```{r n_aih}	
+n_aih_initial <- aih$diag_list$row_n$n1
+n_aih_final <- aih$diag_list$row_n$n_year_trim
+```
+
+```{r p_n_aih_initial , eval=TRUE}
+n_aih_initial
+n_aih_final
+```
+
+The table bellow shows the number of AIH by ICD category. The table is useful for identifying the most common ICD codes and for understanding the distribution of AIH by ICD.
+
+```{r table_icd}
+table_aih_icd <- aih$diag_list$ICD_base_table 
+```
+
+```{r p_table_icd , eval=TRUE}	
+table_aih_icd
+```
+
+The table bellow shows the data completeness and accuracy of the AIH dataset created. It is useful for identifying the number of records with missing or inconsistent attendance data.
+
+```{r table_completeness}
+table_data_quality_aih <- aih$diag_list$error_table_all %>%
+  t() %>%
+  data.frame()
+
+row.names(table_data_quality_aih) <- c(
+  "ICD",
+  "Date of Hospitalization",
+  "Date of Birth",
+  "Patient ZIP Code",
+  "Sex",
+  "Procedure Performed",
+  "Age",
+  "Age code",
+  "Residence Municipality",
+  "Hospital Municipality"
+)
+```
+
+```{r p_table_completeness , eval=TRUE}
+table_data_quality_aih
+```
+
+The table bellow shows the number of AIH by year of hospitalization. It is useful for identifying the distribution of AIH by year and for understanding the trends in the number of 
+AIH over time and the inconsistencies in the year of hospitalization data.
+
+```{r table_year}
+table_aih_year <- aih$diag_list$admission_year_table %>%
+  replace_na(list(ano_internacao = 0))
+```
+
+```{r p_table_year , eval=TRUE}
+head(table_aih_year)
+```
+
+The table bellow shows the number of AIHs by surgery type. In this example we decided not to exclude any type from the analyses. However, it is recommended that procedures that 
+are not appropriate for the cancer under study be excluded due to potential errors.
+
+```{r table_procedures}
+table_proced_aih <- aih$diag_list$procedure_table
+```
+
+```{r p_table_procedures , eval=TRUE}
+head(table_proced_aih, 5)
+```
+
+### 5.2. Unify information of the same patient
+
+The AIH database doesn't include any ID code. Therefore, the function bellow creates a key variable (cod_paciente) to merge all records of the same patient in a single row. 
+We use two different key variable.
+
+* Scenario 1: ICD code + date of birth + sex + CEP5.
+* Scenario 2: ICD code + date of birth + sex.
+
+The first_year and last_year arguments can be used to filter the years of interest.
+
+The usecep argument should be set to TRUE for scenario1 or False for scenario2. 
+
+If write=TRUE the dataset will be saved in the "datasus_files" folder of the current directory if output_dir=NULL or in the folder defined by the 'dir' argument.
+
+#### 5.2.1. Scenario 1: merge data using zip code
+
+```{r merge_data}
+aih_merged_zip_true <- merge_sih(
+  aih$SIH,
+  first_year = 2008,
+  last_year = 2022,
+  age_group = "adult",
+  sex = NULL,
+  usecep = TRUE,
+  write = TRUE,
+  output_dir = NULL,
+  filename = "Data_SIH_pancreas_2008_2022_withcep.csv"
+)
+#> Writing: exported_data/Data_SIH_pancreas_2008_2022_withcep.csv
+
+str(aih_merged_zip_true, max.level = 1)
+#> List of 2
+#>  $ SIH_table: tibble [32,796 × 18] (S3: tbl_df/tbl/data.frame)
+#>  $ diag_list:'data.frame':      1 obs. of  15 variables:
+```
+
+##### Number of patients step by step
+
+The codes below show the number of patients at each step of the data preparation process for Scenario 1.
+
+##### Initial number of patients
+
+The number of patients identified in the AIH database using variable 'cod_paciente'.
+
+```{r n_initial_zip_tru}
+n_initial_zip_true <- aih_merged_zip_true$diag_list$SIH_unique_before
+```
+
+```{r p_n_initial_zip_true , eval=TRUE}
+n_initial_zip_true
+```
+
+##### Number of patients removed by filtering based on the year of hospitalization
+
+```{r n_patients_year_zip_true}	
+n_lt_first_year_zip_true <- aih_merged_zip_true$diag_list$lt_first_year_n
+n_gt_last_year_zip_true <- aih_merged_zip_true$diag_list$gt_last_year_n
+```
+
+```{r p_n_patients_before_year_zip_true , eval=TRUE}
+n_lt_first_year_zip_true
+n_gt_last_year_zip_true
+```
+
+##### Number of patients removed by filtering based on age
+
+```{r n_patients_age_zip_true}
+n_lt_min_age_zip_true <- aih_merged_zip_true$diag_list$lt_min_age
+n_gt_max_age_zip_true <- aih_merged_zip_true$diag_list$gt_max_age
+```
+
+```{r p_n_patients_age_zip_true , eval=TRUE}
+n_lt_min_age_zip_true
+n_gt_max_age_zip_true
+```
+
+##### Number of patients removed by filtering based on sex
+
+```{r n_after_sex_zip_true}
+n_rm_sex_zip_true <- aih_merged_zip_true$diag_list$lt_sex
+```
+```{r p_n_after_sex_zip_true, eval=TRUE}
+n_rm_sex_zip_true
+```
+
+##### Final number of patients
+
+```{r n_patients_zip_true}
+n_patients_zip_true <- aih_merged_zip_true$diag_list$final_patient_n
+```
+
+```{r p_n_patients_zip_true , eval=TRUE}
+n_patients_zip_true
+```
+
+#### 5.2.2. Scenario 2: merge data without zip code
+
+```{r merge_data_no_cep}
+aih_merged_zip_false <- merge_sih(
+  aih$SIH,
+  first_year = 2008,
+  last_year = 2022,
+  age_group = "adult",
+  sex = NULL,
+  usecep = FALSE,
+  write = TRUE,
+  output_dir = NULL,
+  filename = "Data_SIH_pancreas_2008_2022_nocep.csv"
+)
+#> Writing: exported_data/Data_SIH_pancreas_2008_2022_nocep.csv
+
+str(aih_merged_zip_false, max.level = 1)
+#> List of 2
+#>  $ SIH_table: tibble [21,430 × 18] (S3: tbl_df/tbl/data.frame)
+#>  $ diag_list:'data.frame':      1 obs. of  15 variables:
+```
+
+##### Number of patients step by step
+
+The codes below show the number of patients at each step of the data preparation process for Scenario 1.
+
+##### Initial number of patients
+
+The number of patients identified in the AIH database using variable 'cod_paciente'.
+
+```{r n_initial_zip_false}
+n_initial_zip_false <- aih_merged_zip_false$diag_list$SIH_unique_before
+```
+
+```{r p_n_initial_zip_false , eval=TRUE}
+n_initial_zip_false
+```
+
+##### Number of patients removed by filtering based on the year of hospitalization
+
+```{r n_patients_year_zip_false}	
+n_lt_first_year_zip_false <- aih_merged_zip_false$diag_list$lt_first_year_n
+n_gt_last_year_zip_false <- aih_merged_zip_false$diag_list$gt_last_year_n
+```
+
+```{r p_n_patients_before_year_zip_false , eval=TRUE}
+n_lt_first_year_zip_false
+n_gt_last_year_zip_false
+```
+
+##### Number of patients removed by filtering based on age
+
+```{r n_patients_age_zip_false}
+n_lt_min_age_zip_false <- aih_merged_zip_false$diag_list$lt_min_age_n
+n_gt_max_age_zip_false <- aih_merged_zip_false$diag_list$gt_max_age_n
+```
+
+```{r p_n_patients_age_zip_false, eval=TRUE}
+n_lt_min_age_zip_false
+n_gt_max_age_zip_false
+```
+
+##### Number of patients removed by filtering based on sex
+
+```{r n_after_sex_zip_false}
+n_rm_sex_zip_false <- aih_merged_zip_false$diag_list$lt_sex
+```
+```{r p_n_after_sex_zip_false, eval=TRUE}
+n_rm_sex_zip_false
+```
+
+##### Final number of patients
+
+```{r n_patients_zip_false}
+n_patients_zip_false <- aih_merged_zip_false$diag_list$final_patient_n
+```
+
+```{r p_n_patients_zip_false, eval=TRUE}
+n_patients_zip_false
+```
+
+## 6. Data Analysis
+
+The functions bellow were created to generate descriptive tables and plots to analyze the data. For suggestion of how to format and present these data in a report, 
+see the vignette "pancreatic_cancer_aih_report.Rmd" in the documentation folder of the package.
+
+
+### 6.1. Descriptive table
+
+The function below creates a table with the mean age and the number of patients with pancreatic cancer by sex, group age, geographic region of patient.
+
+The age_group argument allows to choose age group and define the minimum and maximum age filters to be applied in the descriptive analysis. The split parameter allows to choose 
+the type of split to be used in the analysis.
+
+
+#### 6.1.1. Scenario 1 descriptive table
+```{r descriptive_table_zip_true}
+patient_table_zip_true <- prepare_patient_table(
+  aih_merged_zip_true$SIH_table,
+  method = "AIH",
+  age_group = "adult",
+  age_type = "age_attendance",
+  split = NULL
+)
+```
+
+```{r p_desc_table_zip_true , eval=TRUE}
+patient_table_zip_true
+```
+
+#### 6.1.2. Scenario 2 descriptive table
+
+```{r descriptive_table_zip_false}	
+patient_table_zip_false <- prepare_patient_table(
+  aih_merged_zip_false$SIH_table,
+  method = "AIH",
+  age_group = "adult",
+  age_type = "age_attendance",
+  split = NULL
+)
+```
+
+```{r p_desc_table_zip_false , eval=TRUE}
+patient_table_zip_false
+```
+
+### 6.2. Plots by year of attendance
+
+The number of patients with pancreatic cancer by treatment and year of attendancecan be visualized using the function below.
+
+#### 6.2.1. Scenario 1 plot: number of patients by year of attendance
+
+The object "aih_merged_zip_true" indicates that the address zip code was included as a key variable.
+
+```{r plot_number_patients_zip_true}
+plot_sih_zip_true <- plot_patient_count(
+  aih_merged_zip_true$SIH_table,
+  method = "AIH",
+  y_type = "number",
+  group = NULL,
+  age_group = "adult",
+  age_type = "age_attendance",
+  include_label = FALSE
+)
+```
+```{r plot_zip_true , eval=TRUE, fig.width = 7, fig.height = 3.5, fig.align = "center"}	
+plot_sih_zip_true
+```
+
+### 6.2.2. Scenario 2 plot: number of patients by year of attendance
+
+The object "aih_merged_zip_false" indicates that the address zip code was not included as a key variable.
+
+```{r plot_number_patients_zip_false}
+plot_sih_zip_false <- plot_patient_count(
+  aih_merged_zip_false$SIH_table,
+  method = "AIH",
+  y_type = "number",
+  group = NULL,
+  age_group = "adult",
+  age_type = "age_attendance",
+  include_label = FALSE
+)
+```
+```{r plot_zip_false , eval=TRUE, fig.width = 7, fig.height = 3.5, fig.align = "center"}	
+plot_sih_zip_false
+```
+
+### 6.2.3. Plot of scenario 1 and scenario 2 together.
+
+On the plot bellow we can see the difference in the number of unique patients when using a less conservative key variable (with zip code) with a more conservative (without zip code).
+
+```{r plot_number_patients, eval=TRUE, fig.width = 7, fig.height = 3.5, fig.align = "center", echo=FALSE}
+combined_plot <- plot_sih_zip_true$data %>%
+  mutate(group = "DT_BIRTH + SEX + ZIP") %>%
+  rbind(plot_sih_zip_false$data %>%
+          mutate(group = "DT_BIRTH + SEX")) %>%
+  ggplot(aes(
+    x = as.numeric(factor(ano_x_value)),
+    y = n,
+    color = group,
+    group = group
+  )) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  theme_minimal() +
+  theme(
+    panel.background = element_blank(),
+    axis.line = element_line(color = "black"),
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(color = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom",
+    legend.direction = "horizontal"
+  ) +
+  labs(x = "Year of hospitalization", y = "Number of patients", color = "Patient count method") +
+  scale_x_continuous(
+    breaks = 1:length(unique(plot_sih_zip_true$data$ano_x_value)),
+    labels = unique(plot_sih_zip_true$data$ano_x_value)
+  )
+
+combined_plot
+```
+
+## 7. Saving objects
+
+The code bellow saves the objects created in this vignette to an .RData file. The file is saved in the "exported_data" folder in the working directory. The objects can be loaded 
+later for further analysis or to generate report.
+
+```{r save_objects}
+save(
+  n_aih_initial,
+  n_aih_final,
+  table_data_quality_aih,
+  table_aih_icd,
+  table_aih_year,
+  table_proced_aih,
+  n_initial_zip_true,
+  n_patients_zip_true,
+  n_lt_first_year_zip_true,
+  n_gt_last_year_zip_true,
+  n_lt_min_age_zip_true,
+  n_gt_max_age_zip_true,
+  n_rm_sex_zip_true,
+  n_initial_zip_false,
+  n_lt_first_year_zip_false,
+  n_gt_last_year_zip_false,
+  n_lt_min_age_zip_false,
+  n_gt_max_age_zip_false,
+  n_rm_sex_zip_false,
+  n_patients_zip_false,
+  patient_table_zip_true,
+  patient_table_zip_false,
+  plot_sih_zip_true,
+  plot_sih_zip_false,
+  combined_plot,
+  file = "data/exported_data/aih_pancreas_analysis.Rdata"
+)
+```

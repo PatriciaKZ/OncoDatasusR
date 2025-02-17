@@ -1,0 +1,151 @@
+---
+title: "Report on the Count of Patients Treated for Cervical Cancer"
+subtitle: "SIHSUS/DATASUS"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+vignette: >
+  %\VignetteIndexEntry{Report on the Count of Patients Treated for Cervical Cancer}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include=FALSE}
+library(OncoDatasusR)
+library(kableExtra)
+library(DT)
+library(janitor)
+library(tidyverse)
+library(plotly)
+
+load("exported_data/aih_cervical_analysis.RData")
+# Check the directory where the file 'aih_cervical_analysis.RData' is saved and adjust the path accordingly.
+```
+
+# 1. Introduction 
+
+This report presents the results of the analysis of the count of patients treated with surgery for cervical cancer, based on data provided by DATASUS and using the methodology proposed by Ziegelmann et all (paper in *peer review*) and implemented by the `OncoDatasusR` package. The R code used to generate the results presented here is available in the package documentation (see vignette "cervical_cancer_aih_example").
+
+The following criteria were used to select the records for the analysis:
+
+* Data source: Hospital Information System (SIHSUS);
+* Date of data extraction: 2024-12-13;
+* Procedures selected: Surgical procedures (SIGTAP group 04);
+* Period of data extraction: Records processed between 2008 to 2023;
+* Period of analyses: Records of patients attended between 2008 to 2022;
+* ICD code: C53 Malignant neoplasm of cervix.
+
+This report is divided into two parts:
+
+* Part 1: presents the number of unique patients identified as well as descriptive tables and graphs.
+* Part 2: presents the step-by-step process for creating the unique patient dataset used in part 1 along with results for evaluating the quality of the created dataset.
+
+# 2. Part 1: Number of Unique Patients
+
+Unique patient counting was carried out using a key variable that identifies AIH records as belonging to the same patient. This key variable is composed of the following variables: ICD code, date of birth, sex, and CEP5.
+
+For more details about the methodology for patient counting and the selection of the key variable, see the vignette "cervical_cancer_aih_example".
+
+## 2.1. Descriptive Table of Cervical Cancer Patients
+
+The analysis of the this scenario identified **`r n_patients_zip_true`** unique patients. The characteristics of the patients are presented in the table bellow.
+
+```{r descriptive_table, echo = FALSE}
+patient_table_zip_true %>%
+  select(-row_names) %>%
+  kable(align = c("l", "c"), col.names = c("", paste0("n = ", n_patients_zip_true))) %>% # add n patients to the 'Total' column
+        add_header_above(c("Variable", "Total"),
+                         bold = TRUE,
+                         align = c("l", "c")) %>%
+          kable_classic() %>%
+          kableExtra::group_rows("Age Years", 1, 5) %>%
+          kableExtra::group_rows("Sex", 6, 6) %>%
+          kableExtra::group_rows("Region", 7, 11) %>%
+          kable_paper(full_width = F, "hover")
+```
+
+## 2.2. Distribution of Patients by Year of First Hospitalization
+
+The figure below presents the distribution of patients by year of first hospitalization.
+
+```{r , fig.width=8, echo = FALSE}
+ggplotly(plot_sih_zip_true, tooltip = c("x", "y", "customdata")) %>%
+  style(
+    hovertemplate = paste(
+      "<b>Year:</b> %{x}<br>",
+      "<b>N of patients:</b> %{y:.0f}<br>",
+      "<extra></extra>"
+    )
+  )
+```
+
+# 3. Part 2: Dataset Construction
+
+The number of AIHs extracted was **`r n_aih_initial`**. 
+
+After filter by year of hospitalization of interest the number of AIHs decreases to **`r n_aih_final`**.
+
+The following table presents the assessment of completeness, errors, and inconsistencies in the dataset after data filtering.
+
+```{r data_quality, echo = FALSE}
+table_data_quality_aih %>%
+  kbl(
+    align = "c",
+    col.names = c(
+      "Missing data",
+      "Incorrect data",
+      "Inconsistent date",
+      "Date previous to 1998",
+      "Future date",
+      "Total"
+    )
+  ) %>%
+  kable_paper("hover", full_width = F)
+```
+
+The table below shows the number of AIHs by primary ICD. The primary ICD includes all subtypes of ICDs present in the AIHs.
+
+```{r icd_aih_table, echo = FALSE}
+table_aih_icd %>%
+  auto_pack_rows(grouping_column = "CID_principal",
+                 col.names = c("ICD", "Description", "n")) %>%
+  kable_paper("hover", full_width = F)
+```
+
+The table below shows the number of AIHs according to the year of hospitalization, along with their respective frequencies, including incongrous values.
+
+```{r records_by_year, echo = FALSE}	
+table_aih_year %>%
+  datatable(
+    colnames = c("Year of hospitalization", "AIHs"),
+    options = list(
+      pageLength = 6,
+      dom = 'tlpi',
+      columnDefs = list(list(
+        className = 'dt-center', targets = 0:2
+      ))
+    )
+  )
+```
+
+The table below presents the procedures performed by ICD of interest, considering all AIHs conducted during the study period.
+
+```{r procedures, echo = FALSE}
+colnames(table_proced_aih)[1:2] <- c("Procedure", "Description")
+
+table_proced_aih %>%
+  datatable(options = list(pageLength = 10, dom = 'tlpi'))
+```
+
+Patients excluded due to:
+
+* Attendance year before 2008: **`r n_lt_first_year_zip_true`**
+* Attendance year after 2022: **`r n_gt_last_year_zip_true`** 
+* Age below minimum (under 18 years): **`r n_lt_min_age_zip_true`**
+* Age above maximum (over 99 years): **`r n_gt_max_age_zip_true`**
+* Removed due to selected sex: **`r n_rm_sex_zip_true`**
+
+Thus:
+
+New patients counted during the study period: **`r n_patients_zip_true`**

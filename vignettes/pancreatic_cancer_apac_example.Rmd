@@ -1,0 +1,680 @@
+---
+title: "Pancreatic cancer: APAC example"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Pancreatic cancer: APAC example}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE,
+                      comment = "#>",
+                      eval = FALSE)
+library(tidyverse)
+
+# To run all analysis change "eval = FALSE" in line 14 to "eval = TRUE" e follow all steps bellow.
+```
+## 1. About this Vignette
+
+This vignette shows how to use the `OncoDatasusR` package to analyze pancreatic cancer data. In this example, we will download and process data from High Cost Procedures Authorizations 
+(APAC in Portuguese) of the Outpatient Information System (SIA) to count the number of patients with pancreatic cancer starting treatment in the Brazilian public health system.
+
+This vignette was written to allow the reader to replicate the Pancreatic cancer Example (paper in *peer review*) without having to download data from DATASUS and to obtain identical results. 
+To do this, it is necessary to load the RData file available in [GitHub](https://github.com/PatriciaKZ/OncoDatasusR/tree/main/vignettes/exported_data). 
+
+```{r, include=FALSE, eval = TRUE}
+load("exported_data/apac_pancreas_analysis.RData")
+```
+
+## 2. Introduction to OncoDatasusR
+
+The `OncoDatasusR` package provides functions to download and process data from the Department of Informatics of the Unified Health System (DATASUS), which is the main 
+public health database in Brazil. Along with the process of creating a dataset with unique patients, this package also provides some information to evaluate data quality.
+Data quality evaluation is a important step since the proposed patient counting methodology may face inaccuracies due to data limitations 
+and the deduplication process. Despite our attempts to reduce the number of patients counted more than once, issues such as incomplete or incorrect records may influence 
+results. A detailed step-by-step analysis of the creation of the final dataset is essential to better understand the limitations and support accurate interpretations of results.
+
+## 3. Prepare the environment
+
+### Load required packages
+
+```{r setup}
+library(OncoDatasusR)
+library(tidyverse)
+library(janitor)
+```
+
+## 4. Download Data from DATASUS
+
+The first step involves extracting data directly from the DATASUS website using 
+File Transfer Protocol (ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Dados/).
+This will be done using the get_datasus function which uses the functions detailed below.
+
++ retrieve_filelist: search in the DATASUS ftp all the desired files and years 
+of interest that are available for download.
+
++ download_datasus: extract the files by Federation Unit/year of interest and save 
+them in the ‘datasus_files’ folder.
+
++ fetch_files: creates a list with the names of the ‘.csv files’ saved in the 
+folder ‘datasus_files’
+
++ merge_datasus: merges all .csv files into a single file. 
+
+### 4.1. Download data of Chemotherapy (AQ) APACs
+
+In the function below we are specifying that we want to extract data from patients 
+with pancreatic cancer "C25", from "all" federation units in Brazil, that 
+the name of the data files to be saved will start with "pancreas", which will be 
+the "AQ" data processed between the years from "2008" and "2023" and which will be saved 
+in a folder called 'datasus_files' created in the current working directory. 
+If you want to choose another name on the folder, replace NULL with the desired name.
+
+```{r download_data_aq}
+get_datasus(
+  icd_list = "C25",
+  fu_list = "all",
+  export_file_code = "pancreas",
+  database = "AQ",
+  first_year = 2008,
+  last_year = 2023,
+  output_dir = NULL
+)
+#>  ...
+#>  trying URL 'ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Dados/AQTO2312.dbc'
+#>  Content type 'unknown' length 4541 bytes
+#>  Reading: datasus_files/AQ_AC_pancreas_2008_2023.csv
+#>  ...
+#>  Writing: datasus_files/AQ_pancreas_2008_2023_full.csv
+#>  File saved successfully.
+```
+
+### 4.2. Download data of Radiotherapy (AR) APACs
+
+In the function below we are repeating the extraction process, now choosing "AR" data.
+
+```{r download_data_ar}
+get_datasus(
+  icd_list = "C25",
+  fu_list = "all",
+  export_file_code = "pancreas",
+  database = "AR",
+  first_year = 2008,
+  last_year = 2023,
+  output_dir = NULL
+)
+#>  ...
+#>  trying URL 'ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Dados/ARTO2312.dbc'
+#>  Content type 'unknown' length 4541 bytes
+#>  Reading: datasus_files/AR_AC_pancreas_2008_2009.csv
+#>  ...
+#>  Writing: datasus_files/AR_pancreas_2008_2023_full.csv
+#>  File saved successfully.
+```
+
+## 5. SIA-SUS Data Preparation
+
+The second step involves the creation of a database with unique patients. It will be done using the extracted data and following rules established for this purpose.
+Quality assessment is available to support subsequent analyses.
+
+### 5.1. Read APAC files
+
+The function below reads all AQ and AR files that were extracted creating an object with all extracted APACs. When dir is NULL, the function will look for the files 
+in the "datasus_files" folder in the current working directory. Otherwise, the function will look for the files in the directory defined by 'dir' argument.
+Only the variables of interest chosen from those available will be kept in this object. By default de function will select 15 variables.
+
+* database (AQ or AR), 
+* cod_paciente (encrypted code of the National Health Card, CNS: Cartão Nacional de Saúde), 
+* cid_prim (primary ICD with 3 digits), 
+* CID_completo (complete ICD with four digits), 
+* proc (code of the procedure performed), 
+* data_diagnostico (date of diagnosis), 
+* ano_diagnostico (year of diagnosis), 
+* data_atendimento, 
+* ano_atendimento, 
+* cep_paciente (zip code of the patient’s address), 
+* sexo (sex), 
+* idade (age at diagnosis with 2 digits according to the DATASUS age code),  
+* cod_idade (age code, as defined by the DATASUS), 
+* estadi (staging),
+* ap_munpcn (code of the city of the residence of the patient). 
+
+By including the ‘select_variables’ argument it is possible to add other variables among those available. In this example we chose the variable AP_MVM (month and year of APAC 
+processing) as an additional variable.
+
+The 'group_icd' argument can be used to group ICD codes for future analysis. If it is used, it is necessary to inform the icd_group_file_path. Be aware that the APACS 
+databases (AQ and AR) are subjected to updates of the previous competence (see PAPER in *peer review*).
+
+The 'med_proced_to_remove' argument can be used to exclude procedures of non-interest.
+
+The output is a list with:
+
+* The APAC dataframe (where each line will display information referring to one APAC),
+* The diag_list list that will have some consistency check information (see PAPER).
+
+```{r read_files}
+apac <- read_apac(
+  read_bases = c("AQ", "AR"),
+  aq_file = "AQ_pancreas_2008_2023_full.csv",
+  ar_file = "AR_pancreas_2008_2023_full.csv",
+  dir = NULL,
+  first_year = 2008,
+  last_year = 2023,
+  file_code = "pancreas",
+  run_diagnostics = TRUE,
+  group_icd = FALSE,
+  export_procedure_table = TRUE,
+  select_variables = "AP_MVM"
+)
+#>  Reading: datasus_files/AQ_pancreas_2008_2023_full.csv
+#>  Reading: datasus_files/AR_pancreas_2008_2023_full.csv
+#>  Writing: datasus_files/APAC_2008_2023_procedures.csv
+
+str(apac, max.level = 1)
+#>  List of 2
+#>   $ APAC     :'data.frame':      254240 obs. of  15 variables:
+#>   $ diag_list:List of 7
+```
+
+#### 5.1.1. Quality evaluation
+
+The total number of APACs in the dataset is:
+
+```{r n_apac}
+n_apac_total <- nrow(apac$APAC)
+```
+
+```{r p_n_apac , eval=TRUE}	
+n_apac_total
+```
+
+The table bellow shows the number of APACs by ICD and SIA database. It is useful for understanding the distribution of APACs by ICD and SIA database. The table also 
+provides a description of the ICD codes, by joining the table with the icd_description dataset from the package, to facilitate interpretation. 
+
+```{r table_icd_sia}
+table_icd_sia <- apac$diag_list$ICD_base_table %>%
+  rbind(colnames(apac$diag_list$ICD_base_table)) %>%
+  select(-Total) %>%
+  t() %>%
+  data.frame() %>%
+  row_to_names(1) %>%
+  left_join(OncoDatasusR::icd_description, by = c(Base = "cd_cid")) %>%
+  replace_na(list(group = " ", ds_cid = " ")) %>%
+  relocate(Base, ds_cid, AQ, AR, Total)
+```
+```{r p_table_icd_sia , eval=TRUE}	
+table_icd_sia
+```
+
+The table bellow shows the number of unique CNS numbers. It is useful for identifying the number of unique patients and for understanding the distribution of patients by CNS 
+and SIA database.
+
+```{r table_cns}
+table_cns_sia <- apac$diag_list$unique_patient_code_all
+```
+```{r p_table_cns, eval=TRUE}	
+table_cns_sia
+```
+
+The table bellow shows the data completeness and accuracy of the APAC dataset created. It is useful for identifying the number of records with missing or inconsistent data and 
+for understanding the quality of the data.
+
+```{r table_data_quality}
+colnames(apac$diag_list$error_table_all) <- c(
+  "Procedure",
+  "Date of Diagnosis",
+  "Date of Attendance",
+  "Patient ZIP code",
+  "Sex",
+  "Age",
+  "Age Code",
+  "Staging",
+  "Patient Municipality Code",
+  "Date of Processing"
+)
+
+table_data_quality <- apac$diag_list$error_table_all %>% t()
+```
+```{r p_table_data_quality , eval=TRUE}	
+table_data_quality
+```
+
+The table bellow shows the number of APACs by year of diagnosis. It is useful for identifying the distribution of APACs by year and for understanding the trends 
+in the number of APACs over time and the inconsistencies in the year of diagnosis and year of procedure data.
+
+```{r table_year}
+table_year <- apac$diag_list$dates_year_table %>%
+    replace_na(list(ano_atendimento_registros = 0))
+```
+```{r p_table_year , eval=TRUE}
+head(table_year)
+```
+
+The table bellow shows the number of APACs by ICD category. It is useful for understanding the distribution of APACs by ICD.
+
+```{r table_icd}
+table_icd <- apac$diag_list$icd_ds_tbl
+```
+```{r p_table_icd, eval=TRUE}	
+table_icd
+```
+
+The table bellow shows the number of APACs by procedure type. In this example we decided not to exclude any procedure from the analyses. However, it is recommended 
+that procedures that are not appropriate for the cancer under study be excluded due to potential errors.
+
+```{r table_procedure}
+table_proced_total <- apac$diag_list$procedure_table
+```
+
+```{r p_table_procedure, eval=TRUE}	
+head(table_proced_total,5)
+```
+
+The table bellow shows the number of records before and after applying a filter to remove APACs with non-interested procedures. 
+If a vector with list of procedures was not provided in the med_proced_to_remove argument of the read_apac function the dif column will be zero.
+
+```{r proc_table}	
+table_procedures <- apac$diag_list$proc_diag_table
+```
+
+```{r p_proc_table , eval=TRUE}
+table_procedures
+```
+
+### 5.2. Unify Records with the same CNS Number
+
+The function below summarizes the data extracted by the CNS (National Insurance Card). This will be done by selecting the APAC with the earliest diagnosis 
+and procedure date.
+If the year of the earliest date of diagnosis is before 1998 (10 years before 2008), the second oldest date will be considered the diagnosis date. 
+Finally, when the second oldest date is before 1998 or the oldest date is after 2024, the CNS is excluded from the data set. This function also creates the new 
+variables listed bellow.
+
+* idade_anos: patient´s age on the day of the procedure calculated using the variables idade and cod_idade.
+* idade_diagnostico: patient´s age at diagnosis calculated using the age on the day of the procedure and the date of diagnosis. 
+* tratamento_ano: procedures performed during the study period.
+* other variables for data quality
+
+The max_age argument determines the maximum age of patients that will be kept in the dataset.The age considered in this filter can be the age at diagnosis 
+(age_diagnosis) or the age on the day of the procedure (age_attendance).
+
+The output is a list with:
+
+* The APAC tibble (where each line will display information referring to one CNS),
+* Seven other tibbles with quality information (see PAPER).
+
+```{r summarise_data}
+apac_sum <- summarise_apac(apac$APAC, run_diagnostics = TRUE)
+
+str(apac_sum)
+#> List of 6
+#>  $ APAC                  : tibble [35,306 × 27] (S3: tbl_df/tbl/data.frame)
+#>  $ apac_per_patient      : tibble [90 × 2] (S3: tbl_df/tbl/data.frame)
+#>  $ dt_table_diag         : tibble [5 × 5] (S3: tbl_df/tbl/data.frame)
+#>  $ dt_diag_unique_patient: tibble [1 × 1] (S3: tbl_df/tbl/data.frame)
+#>  $ dt_diag_unique_apac   : tibble [1 × 1] (S3: tbl_df/tbl/data.frame)
+#>  $ dt_diag_error_tbl     : tibble [3 × 3] (S3: tbl_df/tbl/data.frame)
+```
+
+
+#### 5.2.1. Quality evaluation
+
+The table bellow shows the number of CNS codes by the number of different diagnosis date. We can see that 129,564 (67.8%) CNS codes have just one diagnosis date.
+
+```{r table_inconsist_date}	
+table_inconsist_date <- apac_sum$dt_table_diag %>%
+  mutate(n_dt_diag = ifelse(n_dt_diag == "5+", "5 or more", n_dt_diag))
+```
+
+```{r p_table_inconsist_date , eval=TRUE}
+table_inconsist_date
+```
+
+The table below shows the number of CNS codes with coherent diagnosis dates (190,370), non-coherent ones that were recovered using the second-smallest date rule (322), 
+and inconsistent ones that were not recovered (319).
+
+
+```{r table_date}	
+total_dt_error <- apac_sum$dt_diag_error_tbl
+```
+
+```{r p_table_date , eval=TRUE}
+total_dt_error
+```
+
+The table bellow shows the number of CNS code by the number of APACs. We can see that the most frequent number of APACs is 5.
+
+```{r table_apac_cns}
+table_apac_cns <- apac_sum$apac_per_patient
+```
+
+```{r p_table_apac_cns , eval=TRUE}
+table_apac_cns
+```
+
+The number of CNS codes by the number of APACs can be visualized in the plot bellow.
+
+```{r plot_cns_pcn}	
+plot_cns_pcn <- apac_sum$apac_per_patient %>%
+  mutate(p = cumsum(n) / sum(n)) %>%
+  filter(p < 0.99) %>%
+  rename(`APAC by patient` = linhas, `Patient (CNS)` = n) %>%
+  ggplot(aes(x = `APAC by patient`, y = `Patient (CNS)`)) +
+  geom_col(fill = "steelblue") +
+  theme_minimal() +
+  theme(
+    panel.background = element_blank(),
+    panel.grid = element_blank(),
+    axis.line = element_line(color = "black")
+  ) +
+  xlab("") +
+  labs(caption = "Obs: the x axis includes up to 99% of the most frequent APACs, and the most extreme
+        values were omitted from the visualization")
+```
+
+```{r p_plot_cns_pcn , eval=TRUE, fig.width = 7, fig.height = 3.5, fig.align = "center"}	
+plot_cns_pcn
+```
+
+### 5.3. Unify Records from Patients with Two or More CNS Numbers
+
+On this step the data is prepared to search for patients with two or more different CNS numbers and combine the information from the identified cases.
+
+#### 5.3.1. Prepare APAC Data 
+
+To analyze duplicates, the function below, among other things, creates a key variable for each CNS code, taking into account the patient's ICD, gender, zip code (only the first five digits) 
+and date of diagnosis. The comparison of patients also takes into account the difference in year of birth calculated by plus or minus one year. Finally, each row in the table receives an 
+identification number (id column):
+
+```{r prepare_linkage}
+apac_linkage <- prepare_linkage(apac_sum$APAC, run_diagnostics = TRUE)
+
+str(apac_linkage, max.level = 1)
+#>  List of 2
+#>   $ APAC_table      : tibble [35,306 × 30] (S3: tbl_df/tbl/data.frame)
+#>   $ key_var_NA_table: tibble [1 × 3] (S3: tbl_df/tbl/data.frame)
+
+apac_linkage$APAC_table %>% select(id, cod_paciente, chave1, ano_nasc_calc) %>% head(9) 
+#>  A tibble: 9 × 4
+#>     id cod_paciente                     chave1               ano_nasc_calc
+#>   <int> <chr>                            <chr>                        <dbl>
+#> 1     1 6924601e7b018a5624053daecb367dae C25_F_17760_20091022          1976
+#> 2     2 de59a9367a3f108d6dd635d6a8fc96ce C25_F_17760_20091022          1977
+#> 3     3 ffb5bcbe72617b92fd5ef7b80c9b37e3 C25_F_17760_20091022          1977
+#> 4     4 6ecf367b4cea48e6e9071fbc9939060d C25_M_13500_20080102          1930
+#> 5     5 93a651d61c2907caf590891ee9a011ea C25_M_13500_20080102          1930
+#> 6     6 f3c73226f2294388ca5dd6c507f6d6ec C25_M_13500_20080102          1930
+#> 7     7 329a1b31c0db0281dece15e207504eb3 C25_M_67000_20070712          1967
+#> 8     8 5738046055d7aeabc88eafa2c97bffd3 C25_M_67000_20070712          1967
+#> 9     9 74a2e96bad8acedd5ccd9c1a3d9c10fe C25_M_67000_20070712          1967
+```
+
+#### 5.3.2. Prepare APAC Data: quality information
+
+The table bellow shows the completeness of the key variables. It is useful for identifying the number of records with missing key variables for the deduplication process and for 
+understanding the quality of the data.
+
+```{r table_key_var}	
+table_key_var <- apac_linkage$key_var_NA_table
+```
+
+```{r p_table_key_var , eval=TRUE}
+table_key_var
+```
+
+#### 5.3.3. Create Correspondence Table
+
+The function below groups the CNS that contain the same value for the key variable and the same year of birth (allowing a margin of error of +- 1 year).
+
+The output is a table with the potential duplicates. Each row in the table is a group of CNS. Note that, due to the margin of error in the year of birth, a CNS can belong to more 
+than one group. The message "Warning message:" means that at least one CNS is in more than one group.
+
+```{r create_correspondence_table}
+apac_match_list <- get_match_list(apac_linkage$APAC)
+#>  All ok: each record appears in only one group.
+#>  Processing time: 1.09959506988525
+```
+
+The function above returned a message confirming that each record belongs to a single group, indicating that the linkage variable is unique for each patient. As a result, you can proceed 
+to the next step without requiring manual verification. However, if the function detects potential duplicates, you must manually review the records to confirm their status. 
+For guidance on manual review scenario, refer to the "pancreatic_cancer_apac_example" vignette.
+
+#### 5.3.4. Unify information of potential CNS duplicates
+
+The function bellow unifies the information of potential CNS duplicates identified. For each CNS group, only the CNS with the lowest diagnosis/procedure date will be kept.
+
+The output is a list with:
+* The APAC tibble (where each line will display information referring to one CNS),
+* The cns_count tibble (showing the number of CNSs grouped into groups of 1, 2, 3, ...)
+
+```{r unify_records}
+apac_merged <- merge_cns(apac_linkage$APAC, apac_match_list, run_diagnostics = TRUE)
+
+str(apac_merged, max.level = 1)
+#>  List of 2
+#>   $ APAC     : tibble [34,848 × 33] (S3: tbl_df/tbl/data.frame)
+#>   $ cns_count: tibble [3 × 2] (S3: tbl_df/tbl/data.frame) 
+```
+
+#### 5.3.5. Unify information of potential CNS duplicates: quality information
+
+The table bellow shows the number of duplicates CNS numbers by patient. 
+
+```{r table_dup_cns}
+table_dup_cns <- apac_merged$cns_count
+```
+
+```{r p_table_dup_cns , eval=TRUE}
+table_dup_cns
+```
+
+### 5.4. Filter APAC Data and save the final dataset
+
+The function below filters the data by year of diagnosis and patient age. In the argument "age_type" is possible to choose between the "age_diagnosis" or "age_attendance". Removes patients with inconsistent dates and saves the final dataset in the exported_data folder created in the current directory.
+
+The output is a list with:
+* The APAC_table tibble (where each line will display information referring to 
+one unique patient),
+* The diag_list dataframe with the number of records before and after filtering.
+
+```{r filter_data}
+apac_final <- prepare_apac(
+  apac_table = apac_merged$APAC,
+  first_year = 2008,
+  last_year = 2022,
+  age_type = "age_diagnosis",
+  age_group = "adult",
+  sex = NULL,
+  run_diagnostics = TRUE,
+  write = TRUE,
+  output_dir = NULL,
+  filename = "Base_APAC_pancreas_2008_2022_final.csv"
+)
+#> Writing: exported_data/Base_APAC_pancreas_2008_2022_final.csv
+
+str(apac_final, max.level = 1)
+#>  List of 2
+#>   $ APAC_table: tibble [31,380 × 33] (S3: tbl_df/tbl/data.frame)
+#>   $ diag_list :'data.frame':     1 obs. of  17 variables:
+```
+
+### 5.5. Numbers of patients step by step
+
+The codes below show the number of patients at each step of the data preparation process.
+
+##### Number of CNS before deduplication
+
+```{r n_before_deplication}
+n_before_deduplication <- nrow(apac_linkage$APAC_table)
+```
+```{r p_n_before_deplication , eval=TRUE}
+n_before_deduplication
+```
+
+###### Number of CNS after deduplication
+
+```{r n_after_deplication}
+n_after_deduplication <- nrow(apac_merged$APAC)
+```
+```{r p_n_after_deplication , eval=TRUE}
+n_after_deduplication
+```
+
+###### Number of CNS removed by deduplication
+
+```{r n_unique_patients}
+diff_linkage <- nrow(apac_linkage$APAC_table) - nrow(apac_merged$APAC)
+```
+```{r p_n_unique_patients , eval=TRUE}
+diff_linkage
+```
+
+###### Percentage of CNS removed by deduplication
+
+```{r var_linkage}
+var_linkage <- round((nrow(apac_linkage$APAC_table) -
+                        nrow(apac_merged$APAC)) / nrow(apac_linkage$APAC_table) *
+                       100, 2)
+```
+```{r p_var_linkage , eval=TRUE}
+var_linkage
+```
+
+###### Number of patients with inconsistent dates
+
+```{r n_inconsistent_date}
+dt_attend_before <- apac_final$diag_list$dt_error_n
+```
+```{r p_n_inconsistent_date , eval=TRUE}
+dt_attend_before
+```
+
+###### Number of patients removed by filtering based on the year of diagnosis
+
+```{r n_after_year}
+n_before_min_year <- apac_final$diag_list$lt_first_year_n
+n_after_max_year <- apac_final$diag_list$gt_last_year_n
+```
+
+```{r p_n_after_year , eval=TRUE}
+n_before_min_year
+n_after_max_year
+```
+
+##### Number of patients removed by filtering based on age
+
+```{r n_after_age}
+n_lt_min_age <- apac_final$diag_list$lt_min_age
+n_gt_max_age <- apac_final$diag_list$gt_max_age
+```
+
+```{r p_n_after_age , eval=TRUE}
+n_lt_min_age
+n_gt_max_age
+```
+
+##### Number of patients removed by filtering based on sex
+
+```{r n_after_sex}
+n_rm_sex <- apac_final$diag_list$rm_sex
+```
+```{r p_n_after_sex, eval=TRUE}
+n_rm_sex
+```
+
+##### Final number of patients
+
+```{r n_final_patients}
+n_patients_final <- apac_final$diag_list$final_patient_n
+```
+```{r p_n_final_patients , eval=TRUE}
+n_patients_final
+```
+
+## 6. Data Analysis
+
+The functions bellow were created to generate descriptive tables and plots to analyze the data. For suggestion of how to format and present these data in a report, see the 
+vignette "pancreatic_cancer_apac_report.Rmd" in the documentation folder of the package.
+
+### 6.1. Descriptive table
+
+The function below creates a table with the mean age and the number of patients with pancreatic cancer by sex, group age, geographic region of patient and clinical stage.
+
+The age_group argument allows to choose age group and define the minimum and maximum age filters to be applied in the descriptive analysis. Be sure to select an age_group 
+consistent with the one chosen in the prepare_apac function. The split parameter allows to choose the type of split to be used in the analysis.
+
+```{r descriptive_table}
+patient_table <- prepare_patient_table(
+  apac_final$APAC_table,
+  method = "APAC",
+  age_group = "adult",
+  age_type = "age_diagnosis"
+)
+```
+
+```{r p_patient_table , eval=TRUE}
+patient_table
+```
+
+### 6.2. Plot of number of patients with pancreatic cancer by year of diagnosis
+
+The number of patients with pancreatic cancer by treatment and year of diagnosis can be visualized using the function below. The y_type argument allows to choose whether to include 
+the "number" or the "proportion" of patients in the plot. 
+
+
+```{r count_patients}
+plot_treat <- plot_patient_count(
+  apac_final$APAC_table,
+  method = "APAC",
+  y_type = "number",
+  group = "procedure",
+  age_group = "adult",
+  age_type = "age_diagnosis",
+  legend_title = "Treatment",
+  include_label = FALSE
+) +
+  aes(customdata = tratamento)
+```
+
+```{r plot , eval=TRUE, fig.width = 7, fig.height = 3.5, fig.align = "center"}	
+plot_treat
+```
+
+## 7. Saving objects
+
+The code bellow saves the objects created in this vignette to an .RData file. The file is saved in the "exported_data" folder in the working directory. The objects can be loaded 
+later for further analysis or to generate the automatic report. 
+
+```{r save_objects}
+save(
+  patient_table,
+  plot_treat,
+  n_apac_total,
+  table_icd,
+  table_procedures,
+  table_icd_sia,
+  table_cns_sia,
+  table_data_quality,
+  table_year,
+  total_dt_error,
+  total_replaced_diag_dt,
+  table_proced_total,
+  plot_cns_pcn,
+  table_apac_cns,
+  table_inconsist_date,
+  table_key_var,
+  table_dup_cns,
+  n_before_deduplication,
+  n_after_deduplication,
+  diff_linkage,
+  var_linkage,
+  n_before_min_year,
+  n_after_max_year,
+  dt_attend_before,
+  n_lt_min_age,
+  n_gt_max_age,
+  n_rm_sex,
+  n_patients_final,
+  file = "exported_data/apac_pancreas_analysis.RData"
+)
+```

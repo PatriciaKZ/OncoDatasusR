@@ -1,0 +1,8 @@
+.Rproj.user/
+.vscode/
+.Rhistory
+.Rprofile
+.Rproj
+OncoDatasusR.Rproj
+.Rbuildignore
+*.html

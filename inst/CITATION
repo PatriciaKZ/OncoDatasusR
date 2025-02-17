@@ -1,0 +1,17 @@
+citHeader("To cite the OncoDatasusR package in publications, please use the following:")
+
+citation <- bibentry(
+  bibtype = "Manual",
+  title = "OncoDatasusR: Download and Process Oncology 'DataSUS' Files",
+  author = c(
+    person(given = "Patricia", family = "Ziegelmann", role = c("aut", "cre")),
+    person(given = "Marcelo", family = "Borges", role = c("aut")),
+    person(given = "Cintia", family = "Scala", role = c("aut")),
+    person(given = "Nelson", family = "Correa", role = c("ctb"))
+  ),
+  year = "2025",
+  note = "R package version 0.1.0.9000",
+  url = "https://github.com/PatriciaKZ/OncoDatasusR"
+)
+
+citFooter("We appreciate your citation for using this package.")
