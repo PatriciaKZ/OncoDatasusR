@@ -21,17 +21,22 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Imports:
-    data.table,
-    dplyr,
-    janitor,
-    lubridate,
-    magrittr,
-    RCurl,
-    read.dbc,
-    readr,
-    retry,
-    rlang,
-    scales
+    data.table (>= 1.16.2),
+    DT (>= 0.33),
+    dplyr (>= 1.1.4),
+    janitor (>= 2.2.1),
+    kableExtra (>= 1.4.0),
+    lubridate (>= 1.9.4),
+    magrittr (>= 2.0.3),
+    plotly (>= 4.10.4),
+    RCurl (>= 1.98.1.16),
+    read.dbc (>= 1.0.7),
+    readr (>= 2.1.15),
+    retry (>= 0.1.1),
+    rlang (>= 1.1.4),
+    scales (>= 1.3.0),
+    tidyverse (>= 2.0.0),
+    ggplot2 (>= 3.5.1)
 Remotes: 
     danicat/read.dbc
 LazyData: true

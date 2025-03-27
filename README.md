@@ -10,7 +10,7 @@ Você pode instalar o pacote com o comando:
 
 ```R
 if (!require("devtools")) install.packages("devtools")
-devtools::install_github("https://github.com/PatriciaKZ/OncoDatasusR")
+devtools::install_github("PatriciaKZ/OncoDatasusR", build_vignettes = TRUE)
 ```
 
 Para compilar o pacote, é necessário instalar o [Rtools](https://cran.r-project.org/bin/windows/Rtools/) em seu computador.
