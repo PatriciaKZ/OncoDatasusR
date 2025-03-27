@@ -65,7 +65,7 @@ The database = "RD" shows that AIH data are going to be extracted.
 
 ```{r download_data}
 get_datasus(
-  icd_list = "C53",
+  icd_list = "C25",
   fu_list = "all",
   export_file_code = "pancreas",
   database = "RD",
