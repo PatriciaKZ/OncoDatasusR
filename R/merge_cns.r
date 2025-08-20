@@ -30,14 +30,20 @@
 #' }
 merge_cns <- function(apac_table, match_list, run_diagnostics = FALSE) {
   if (run_diagnostics) {
-    match_list$n_cns <- ncol(match_list) - apply(match_list, 1, function(x)
-      sum(is.na(x)))
+    match_list$n_cns <- ncol(match_list) -
+      apply(match_list, 1, function(x) sum(is.na(x)))
+
     multiple_cns_count <- match_list %>% dplyr::count(n_cns)
 
-    cns_count <- apac_table %>%
-      dplyr::count(chave1_n) %>%
-      dplyr::filter(chave1_n == 1) %>%
-      dplyr::rename(n_cns = chave1_n) %>%
+    records_tbl <- multiple_cns_count %>%
+      dplyr::mutate(n = n_cns * n)
+
+    cns_count <- data.frame(
+      n_cns = 1,
+      n = nrow(apac_table) - sum(records_tbl$n)
+    )
+
+    cns_count <- cns_count %>%
       dplyr::bind_rows(multiple_cns_count)
 
     match_list <- match_list %>% dplyr::select(-n_cns)
@@ -48,7 +54,7 @@ merge_cns <- function(apac_table, match_list, run_diagnostics = FALSE) {
 
   for (i in 1:nrow(match_list)) {
     # Selects ids with duplicates
-    not_NA <- !is.na(match_list[i, ])
+    not_NA <- which(!is.na(match_list[i, ]))
     ids <- unlist(match_list[i, not_NA])
     # Selects only records of ids with duplicates and creates a subtable
 
@@ -67,7 +73,6 @@ merge_cns <- function(apac_table, match_list, run_diagnostics = FALSE) {
     )
 
     sub_APAC$n_cns <- nrow(sub_APAC)
-
 
     # If exists, record the first non-missing age value (NA), starting from the oldest service date
     if ("idade_anos" %in% colnames(sub_APAC))
@@ -100,9 +105,17 @@ merge_cns <- function(apac_table, match_list, run_diagnostics = FALSE) {
   # Bind records with potential duplicate matches found
   APAC_merged <- apac_table_dup %>%
     # With records with potential duplicates where matches were not found
-    dplyr::bind_rows(apac_table[-sort(unlist(match_list)), ] %>% dplyr::filter(chave1_n > 1) %>% dplyr::mutate(n_cns = 1)) %>%
+    dplyr::bind_rows(
+      apac_table[-sort(unlist(match_list)), ] %>%
+        dplyr::filter(chave1_n > 1) %>%
+        dplyr::mutate(n_cns = 1)
+    ) %>%
     # And with unique records, according to key 1 (CID, sex, CEP5, and ref_year)
-    dplyr::bind_rows(apac_table %>% dplyr::filter(chave1_n == 1) %>% dplyr::rename(n_cns = chave1_n)) %>%
+    dplyr::bind_rows(
+      apac_table %>%
+        dplyr::filter(chave1_n == 1) %>%
+        dplyr::rename(n_cns = chave1_n)
+    ) %>%
     # Remove columns that will not be used
     dplyr::select(-proc)
 

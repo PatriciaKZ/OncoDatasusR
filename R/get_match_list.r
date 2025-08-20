@@ -18,11 +18,8 @@
 #' match_list <- get_match_list(apac_table = apac_data, silent = FALSE, print_time = TRUE)
 #' head(match_list)
 #' }
-get_match_list <- function(apac_table,
-                           silent = FALSE,
-                           print_time = TRUE) {
-  if (print_time)
-    ini.time <- Sys.time()
+get_match_list <- function(apac_table, silent = FALSE, print_time = TRUE) {
+  if (print_time) ini.time <- Sys.time()
 
   # Creates a vector with unique values of the key1
   chave_1_possiveis_duplicatas = apac_table %>%
@@ -37,7 +34,8 @@ get_match_list <- function(apac_table,
   for (i in 1:length(chave_1_possiveis_duplicatas)) {
     # Creates a sub-table with only the records of each key with more than one record
 
-    subAPAC = apac_table %>% dplyr::filter(chave1 == chave_1_possiveis_duplicatas[i])
+    subAPAC = apac_table %>%
+      dplyr::filter(chave1 == chave_1_possiveis_duplicatas[i])
 
     for (j in 1:nrow(subAPAC)) {
       # Checks if the sub-table does not have only two records (to avoid repetition
@@ -45,19 +43,19 @@ get_match_list <- function(apac_table,
 
       if (!(j == 2 & nrow(subAPAC) == 2)) {
         # Verifies which records meet the age criteria (calculated birth year +/- 1)
-        res = (
-          subAPAC$ano_nasc_calc[j] == (subAPAC$ano_nasc_calc + 1) |
-            subAPAC$ano_nasc_calc[j] == subAPAC$ano_nasc_calc       |
-            subAPAC$ano_nasc_calc[j] == (subAPAC$ano_nasc_calc - 1)
-        )
+        res = (subAPAC$ano_nasc_calc[j] == (subAPAC$ano_nasc_calc + 1) |
+          subAPAC$ano_nasc_calc[j] == subAPAC$ano_nasc_calc |
+          subAPAC$ano_nasc_calc[j] == (subAPAC$ano_nasc_calc - 1))
 
         # If another record meeting the above criteria is found, identifies the row (position) of the record to which it was compared
         if (sum(res, na.rm = T) > 1) {
           # Selects the id of the duplicate records, arranges in ascending order, and appends to the match list
-          match_list <- subAPAC$id[which(res)] %>% sort() %>% t() %>% data.frame() %>% dplyr::bind_rows(match_list)
-
+          match_list <- subAPAC$id[which(res)] %>%
+            sort() %>%
+            t() %>%
+            data.frame() %>%
+            dplyr::bind_rows(match_list)
         }
-
       }
     }
   }

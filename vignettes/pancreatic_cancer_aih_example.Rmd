@@ -8,9 +8,7 @@ vignette: >
 ---
 
 ```{r, include = FALSE}
-knitr::opts_chunk$set(collapse = TRUE,
-                      comment = "#>",
-                      eval = FALSE)
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 library(tidyverse)
 
 # To run all analysis change "eval = FALSE" in line 14 to "eval = TRUE" e follow all steps bellow.
@@ -65,7 +63,7 @@ The database = "RD" shows that AIH data are going to be extracted.
 
 ```{r download_data}
 get_datasus(
-  icd_list = "C25",
+  icd_list = "C53",
   fu_list = "all",
   export_file_code = "pancreas",
   database = "RD",
@@ -154,7 +152,7 @@ n_aih_final
 The table bellow shows the number of AIH by ICD category. The table is useful for identifying the most common ICD codes and for understanding the distribution of AIH by ICD.
 
 ```{r table_icd}
-table_aih_icd <- aih$diag_list$ICD_base_table 
+table_aih_icd <- aih$diag_list$ICD_base_table
 ```
 
 ```{r p_table_icd , eval=TRUE}	
@@ -289,7 +287,8 @@ n_gt_max_age_zip_true
 
 ```{r n_after_sex_zip_true}
 n_rm_sex_zip_true <- aih_merged_zip_true$diag_list$lt_sex
-```
+``
+`
 ```{r p_n_after_sex_zip_true, eval=TRUE}
 n_rm_sex_zip_true
 ```
@@ -370,7 +369,8 @@ n_gt_max_age_zip_false
 
 ```{r n_after_sex_zip_false}
 n_rm_sex_zip_false <- aih_merged_zip_false$diag_list$lt_sex
-```
+`
+``
 ```{r p_n_after_sex_zip_false, eval=TRUE}
 n_rm_sex_zip_false
 ```
@@ -432,7 +432,7 @@ patient_table_zip_false
 
 ### 6.2. Plots by year of attendance
 
-The number of patients with pancreatic cancer by treatment and year of attendancecan be visualized using the function below.
+The number of patients with pancreatic cancer by treatment and year of attendance can be visualized using the function below.
 
 #### 6.2.1. Scenario 1 plot: number of patients by year of attendance
 
@@ -448,7 +448,8 @@ plot_sih_zip_true <- plot_patient_count(
   age_type = "age_attendance",
   include_label = FALSE
 )
-```
+``
+`
 ```{r plot_zip_true , eval=TRUE, fig.width = 7, fig.height = 3.5, fig.align = "center"}	
 plot_sih_zip_true
 ```
@@ -467,7 +468,8 @@ plot_sih_zip_false <- plot_patient_count(
   age_type = "age_attendance",
   include_label = FALSE
 )
-```
+`
+``
 ```{r plot_zip_false , eval=TRUE, fig.width = 7, fig.height = 3.5, fig.align = "center"}	
 plot_sih_zip_false
 ```
@@ -479,8 +481,10 @@ On the plot bellow we can see the difference in the number of unique patients wh
 ```{r plot_number_patients, eval=TRUE, fig.width = 7, fig.height = 3.5, fig.align = "center", echo=FALSE}
 combined_plot <- plot_sih_zip_true$data %>%
   mutate(group = "DT_BIRTH + SEX + ZIP") %>%
-  rbind(plot_sih_zip_false$data %>%
-          mutate(group = "DT_BIRTH + SEX")) %>%
+  rbind(
+    plot_sih_zip_false$data %>%
+      mutate(group = "DT_BIRTH + SEX")
+  ) %>%
   ggplot(aes(
     x = as.numeric(factor(ano_x_value)),
     y = n,
@@ -500,13 +504,59 @@ combined_plot <- plot_sih_zip_true$data %>%
     legend.position = "bottom",
     legend.direction = "horizontal"
   ) +
-  labs(x = "Year of hospitalization", y = "Number of patients", color = "Patient count method") +
+  labs(
+    x = "Year of hospitalization",
+    y = "Number of patients",
+    color = "Patient count method"
+  ) +
   scale_x_continuous(
     breaks = 1:length(unique(plot_sih_zip_true$data$ano_x_value)),
     labels = unique(plot_sih_zip_true$data$ano_x_value)
   )
 
 combined_plot
+```
+
+### 6.3. Plot by Top 4 Procedures
+
+The plot below shows the number of patients with pancreatic cancer by procedure performed, considering scenario 1. For this example, we used the top 4 most frequent procedures.
+
+First, we need to create a vector with the top 4 most frequent procedures to filter the data for plotting.
+
+```{r top_procedures}
+top_procedures <- aih_merged_zip_true$SIH_table %>%
+  group_by(PROC_REA) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n)) %>%
+  slice(1:4) %>%
+  pull(PROC_REA)
+
+# Adjusting the procedure labels according to the SIGTAP table.
+
+procedure_labels <- c(
+  "0415020050" = "Sequential procedures",
+  "0416040012" = "Bileo-Digestive anastomosis",
+  "0416040128" = "Duodenopancreactomy",
+  "0416040209" = "Multiple intra-abdominal biopsies"
+)
+
+plot_proced_sih_zip_true <- aih_merged_zip_true$SIH_table %>%
+  filter(PROC_REA %in% top_procedures) %>%
+  mutate(
+    PROC_REA = recode(trimws(PROC_REA), !!!procedure_labels)
+  ) %>%
+  plot_patient_count(
+    method = "AIH",
+    y_type = "number",
+    group = "procedure",
+    age_group = "adult",
+    age_type = "age_attendance",
+    include_label = FALSE
+  )
+```
+
+```{r plot_procedure , eval=TRUE, fig.width = 7, fig.height = 3.5, fig.align = "center"}	
+plot_proced_sih_zip_true
 ```
 
 ## 7. Saving objects

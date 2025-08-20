@@ -8,9 +8,7 @@ vignette: >
 ---
 
 ```{r, include = FALSE}
-knitr::opts_chunk$set(collapse = TRUE,
-                      comment = "#>",
-                      eval = FALSE)
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 library(tidyverse)
 
 # To run another analysis change "eval = FALSE" in line 14 to "eval = TRUE" e follow all steps bellow.
@@ -190,6 +188,38 @@ n_apac_total <- nrow(apac$APAC)
 n_apac_total
 ```
 
+The table bellow shows the number of records before and after applying a filter to remove APACs with non-interested procedures. 
+In this example we decided not to exclude any procedure from the analyses. However, it is recommended that procedures that are not appropriate for the cancer under study be excluded due to potential errors. 
+If a vector with list of procedures was not provided in the med_proced_to_remove argument of the read_apac function the dif column will be zero.
+
+```{r proc_table}	
+table_procedures <- apac$diag_list$proc_diag_table
+```
+
+```{r p_proc_table , eval=TRUE}
+table_procedures
+```
+
+The table bellow shows the number of APACs by procedure type. 
+
+```{r table_procedure}
+table_proced_total <- apac$diag_list$procedure_table
+```
+
+```{r p_table_procedure, eval=TRUE}	
+head(table_proced_total, 5)
+```
+
+The table bellow shows the number of APACs by ICD category. It is useful for understanding the distribution of APACs by ICD.
+
+```{r table_icd}
+table_icd <- apac$diag_list$icd_ds_tbl
+``
+`
+```{r p_table_icd, eval=TRUE}	
+table_icd
+```
+
 The table bellow shows the number of APACs by ICD and SIA database. It is useful for understanding the distribution of APACs by ICD and SIA database. The table also 
 provides a description of the ICD codes, by joining the table with the icd_description dataset from the package, to facilitate interpretation. 
 
@@ -203,20 +233,13 @@ table_icd_sia <- apac$diag_list$ICD_base_table %>%
   left_join(OncoDatasusR::icd_description, by = c(Base = "cd_cid")) %>%
   replace_na(list(group = " ", ds_cid = " ")) %>%
   relocate(Base, ds_cid, AQ, AR, Total)
-```
+`
+``
 ```{r p_table_icd_sia , eval=TRUE}	
 table_icd_sia
 ```
 
-The table bellow shows the number of unique CNS numbers. It is useful for identifying the number of unique patients and for understanding the distribution of patients by CNS 
-and SIA database.
-
-```{r table_cns}
-table_cns_sia <- apac$diag_list$unique_patient_code_all
-```
-```{r p_table_cns, eval=TRUE}	
-table_cns_sia
-```
+### 5.1.2. Quality evaluation
 
 The table bellow shows the data completeness and accuracy of the APAC dataset created. It is useful for identifying the number of records with missing or inconsistent data and 
 for understanding the quality of the data.
@@ -236,7 +259,8 @@ colnames(apac$diag_list$error_table_all) <- c(
 )
 
 table_data_quality <- apac$diag_list$error_table_all %>% t()
-```
+``
+`
 ```{r p_table_data_quality , eval=TRUE}	
 table_data_quality
 ```
@@ -247,40 +271,23 @@ in the number of APACs over time and the inconsistencies in the year of diagnosi
 ```{r table_year}
 table_year <- apac$diag_list$dates_year_table %>%
     replace_na(list(ano_atendimento_registros = 0))
-```
+`
+``
 ```{r p_table_year , eval=TRUE}
 head(table_year)
 ```
 
-The table bellow shows the number of APACs by ICD category. It is useful for understanding the distribution of APACs by ICD.
+### 5.1.3. Count of patients by unique CNS codes
 
-```{r table_icd}
-table_icd <- apac$diag_list$icd_ds_tbl
-```
-```{r p_table_icd, eval=TRUE}	
-table_icd
-```
+The table bellow shows the number of unique CNS numbers. It is useful for identifying the number of unique patients and for understanding the distribution of patients by CNS 
+and SIA database.
 
-The table bellow shows the number of APACs by procedure type. In this example we decided not to exclude any procedure from the analyses. However, it is recommended 
-that procedures that are not appropriate for the cancer under study be excluded due to potential errors.
-
-```{r table_procedure}
-table_proced_total <- apac$diag_list$procedure_table
-```
-
-```{r p_table_procedure, eval=TRUE}	
-head(table_proced_total,5)
-```
-
-The table bellow shows the number of records before and after applying a filter to remove APACs with non-interested procedures. 
-If a vector with list of procedures was not provided in the med_proced_to_remove argument of the read_apac function the dif column will be zero.
-
-```{r proc_table}	
-table_procedures <- apac$diag_list$proc_diag_table
-```
-
-```{r p_proc_table , eval=TRUE}
-table_procedures
+```{r table_cns}
+table_cns_sia <- apac$diag_list$unique_patient_code_all
+``
+`
+```{r p_table_cns, eval=TRUE}	
+table_cns_sia
 ```
 
 ### 5.2. Unify Records with the same CNS Number
@@ -358,8 +365,20 @@ The number of CNS codes by the number of APACs can be visualized in the plot bel
 plot_cns_pcn <- apac_sum$apac_per_patient %>%
   mutate(p = cumsum(n) / sum(n)) %>%
   filter(p < 0.99) %>%
-  rename(`APAC by patient` = linhas, `Patient (CNS)` = n) %>%
-  ggplot(aes(x = `APAC by patient`, y = `Patient (CNS)`)) +
+  rename(`
+APAC
+by
+patient
+` = linhas, `
+Patient(CNS)
+` = n) %>%
+  ggplot(aes(x = `
+APAC
+by
+patient
+`, y = `
+Patient(CNS)
+`)) +
   geom_col(fill = "steelblue") +
   theme_minimal() +
   theme(
@@ -679,7 +698,9 @@ str(apac_merged, max.level = 1)
 The table bellow shows the number of duplicates CNS numbers by patient. 
 
 ```{r table_dup_cns}
-table_dup_cns <- apac_merged$cns_count
+table_dup_cns <- apac_merged$cns_count %>%
+    mutate(p = paste0(format(round(n / sum(n) * 100, 2), nsmall = 2), "%")) %>%
+    mutate(p = gsub("0.00\\%", "<0.01\\%", p))
 ```
 
 ```{r p_table_dup_cns , eval=TRUE}
@@ -724,7 +745,8 @@ The codes below show the number of patients at each step of the data preparation
 
 ```{r n_before_deplication}
 n_before_deduplication <- nrow(apac_linkage$APAC_table)
-```
+`
+``
 ```{r p_n_before_deplication , eval=TRUE}
 n_before_deduplication
 ```
@@ -733,7 +755,8 @@ n_before_deduplication
 
 ```{r n_after_deplication}
 n_after_deduplication <- nrow(apac_merged$APAC)
-```
+``
+`
 ```{r p_n_after_deplication , eval=TRUE}
 n_after_deduplication
 ```
@@ -742,7 +765,8 @@ n_after_deduplication
 
 ```{r n_unique_patients}
 diff_linkage <- nrow(apac_linkage$APAC_table) - nrow(apac_merged$APAC)
-```
+`
+``
 ```{r p_n_unique_patients , eval=TRUE}
 diff_linkage
 ```
@@ -751,11 +775,14 @@ diff_linkage
 
 ```{r var_linkage}
 var_linkage <- round(
-    (nrow(apac_linkage$APAC_table) -
-        nrow(apac_merged$APAC)) / nrow(apac_linkage$APAC_table) *
-        100, 2
+  (nrow(apac_linkage$APAC_table) -
+    nrow(apac_merged$APAC)) /
+    nrow(apac_linkage$APAC_table) *
+    100,
+  2
 )
-```
+``
+`
 ```{r p_var_linkage , eval=TRUE}
 var_linkage
 ```
@@ -764,7 +791,8 @@ var_linkage
 
 ```{r n_inconsistent_date}
 dt_attend_before <- apac_final$diag_list$dt_error_n
-```
+`
+``
 ```{r p_n_inconsistent_date , eval=TRUE}
 dt_attend_before
 ```
@@ -797,7 +825,8 @@ n_gt_max_age
 
 ```{r n_after_sex}
 n_rm_sex <- apac_final$diag_list$rm_sex
-```
+``
+`
 ```{r p_n_after_sex, eval=TRUE}
 n_rm_sex
 ```
@@ -806,7 +835,8 @@ n_rm_sex
 
 ```{r n_final_patients}
 n_patients_final <- apac_final$diag_list$final_patient_n
-```
+`
+``
 ```{r p_n_final_patients , eval=TRUE}
 n_patients_final
 ```
