@@ -53,54 +53,61 @@
 #' )
 #' head(apac_data$APAC)
 #' }
-read_apac <- function(read_bases = c("AQ", "AR"),
-                      aq_file = NA,
-                      ar_file = NA,
-                      dir = NULL,
-                      first_year = NA,
-                      last_year = NA,
-                      file_code = NA,
-                      procedures_filename = NA,
-                      run_diagnostics = TRUE,
-                      select_variables = NA,
-                      clear_cache = TRUE,
-                      silent = FALSE,
-                      export_procedure_table = FALSE,
-                      selected_med_procedures,
-                      med_proced_to_remove,
-                      group_icd = FALSE,
-                      icd_group_file_path = NULL) {
+read_apac <- function(
+  read_bases = c("AQ", "AR"),
+  aq_file = NA,
+  ar_file = NA,
+  dir = NULL,
+  first_year = NA,
+  last_year = NA,
+  file_code = NA,
+  procedures_filename = NA,
+  run_diagnostics = TRUE,
+  select_variables = NA,
+  clear_cache = TRUE,
+  silent = FALSE,
+  export_procedure_table = FALSE,
+  selected_med_procedures,
+  med_proced_to_remove,
+  group_icd = FALSE,
+  icd_group_file_path = NULL
+) {
   sigtap_procedures <- OncoDatasusR::sigtap_procedures
   icd_description <- OncoDatasusR::icd_description
 
   if (!missing(select_variables)) {
-    if (any(
-      select_variables %in% c(
-        "AP_CNSPCN_ENC64",
-        "AP_CNSPCN_ENC64",
-        "AQ_DTIDEN",
-        "AR_DTIDEN",
-        "AP_CMP",
-        "AP_SEXO",
-        "AP_NUIDADE",
-        "AP_COIDADE",
-        "AP_CEPPCN",
-        "AP_CIDPRI",
-        "AP_PRIPAL",
-        "AQ_ESTADI",
-        "AR_ESTADI",
-        "AP_MUNPCN"
+    if (
+      any(
+        select_variables %in%
+          c(
+            "AP_CNSPCN_ENC64",
+            "AP_CNSPCN_ENC64",
+            "AQ_DTIDEN",
+            "AR_DTIDEN",
+            "AP_CMP",
+            "AP_SEXO",
+            "AP_NUIDADE",
+            "AP_COIDADE",
+            "AP_CEPPCN",
+            "AP_CIDPRI",
+            "AP_PRIPAL",
+            "AQ_ESTADI",
+            "AR_ESTADI",
+            "AP_MUNPCN"
+          )
       )
-    ))
-    stop(
-      "Error: The variables 'AP_CNSPCN_ENC64', 'AP_CNSPCN_ENC64', 'AQ_DTIDEN', 'AR_DTIDEN', 'AP_CMP', 'AP_SEXO', 'AP_NUIDADE', 'AP_COIDADE', 'AP_CEPPCN', 'AP_CIDPRI', 'AP_PRIPAL', 'AQ_ESTADI', 'AR_ESTADI' and 'AP_MUNPCN' are reserved and cannot be selected."
     )
+      stop(
+        "Error: The variables 'AP_CNSPCN_ENC64', 'AP_CNSPCN_ENC64', 'AQ_DTIDEN', 'AR_DTIDEN', 'AP_CMP', 'AP_SEXO', 'AP_NUIDADE', 'AP_COIDADE', 'AP_CEPPCN', 'AP_CIDPRI', 'AP_PRIPAL', 'AQ_ESTADI', 'AR_ESTADI' and 'AP_MUNPCN' are reserved and cannot be selected."
+      )
   }
 
   if (is.null(dir)) {
     dir <- paste0(getwd(), "/datasus_files/")
     if (!dir.exists(dir)) {
-      stop("Error: The folder 'datasus_files' was not found in the current working directory.")
+      stop(
+        "Error: The folder 'datasus_files' was not found in the current working directory."
+      )
     }
   } else {
     if (!dir.exists(dir)) {
@@ -121,30 +128,52 @@ read_apac <- function(read_bases = c("AQ", "AR"),
   }
 
   if (group_icd) {
-    if (all(c("icd_group", "icd") %in%
-            colnames(icd_groups))) {
+    if (
+      all(
+        c("icd_group", "icd") %in%
+          colnames(icd_groups)
+      )
+    ) {
       icd_groups <- icd_groups %>%
         dplyr::select(icd, icd_group)
     } else {
-      stop("Error: The ICD grouping file must contain the columns 'icd' and 'icd_group'")
+      stop(
+        "Error: The ICD grouping file must contain the columns 'icd' and 'icd_group'"
+      )
     }
   }
 
   if ("AQ" %in% read_bases)
-    aq_file_name <- paste0(dir, "aq_", file_code, "_", first_year, last_year, "_full.csv")
+    aq_file_name <- paste0(
+      dir,
+      "aq_",
+      file_code,
+      "_",
+      first_year,
+      last_year,
+      "_full.csv"
+    )
   if ("AR" %in% read_bases)
-    ar_file_name <- paste0(dir, "ar_", file_code, "_", first_year, last_year, "_full.csv")
+    ar_file_name <- paste0(
+      dir,
+      "ar_",
+      file_code,
+      "_",
+      first_year,
+      last_year,
+      "_full.csv"
+    )
 
-  if (!is.na(aq_file))
-    aq_file_name <- paste0(dir, aq_file)
-  if (!is.na(ar_file))
-    ar_file_name <- paste0(dir, ar_file)
+  if (!is.na(aq_file)) aq_file_name <- paste0(dir, aq_file)
+  if (!is.na(ar_file)) ar_file_name <- paste0(dir, ar_file)
 
   if ("AQ" %in% read_bases) {
     if (file.exists(aq_file_name)) {
-      if (!silent)
-        message(paste0("Reading: ", aq_file_name))
-      aq_df <- data.frame(data.table::fread(aq_file_name, colClasses = "character"))
+      if (!silent) message(paste0("Reading: ", aq_file_name))
+      aq_df <- data.frame(data.table::fread(
+        aq_file_name,
+        colClasses = "character"
+      ))
     } else {
       stop(paste0("File ", aq_file_name, " not found!"))
     }
@@ -152,9 +181,11 @@ read_apac <- function(read_bases = c("AQ", "AR"),
 
   if ("AR" %in% read_bases) {
     if (file.exists(ar_file_name)) {
-      if (!silent)
-        message(paste0("Reading: ", ar_file_name))
-      ar_df <- data.frame(data.table::fread(ar_file_name, colClasses = "character"))
+      if (!silent) message(paste0("Reading: ", ar_file_name))
+      ar_df <- data.frame(data.table::fread(
+        ar_file_name,
+        colClasses = "character"
+      ))
     } else {
       stop(paste0("File ", ar_file_name, " not found!"))
     }
@@ -242,17 +273,14 @@ read_apac <- function(read_bases = c("AQ", "AR"),
     "ap_munpcn"
   )
 
-  if (!missing(select_variables))
-    variables <- c(variables, select_variables)
+  if (!missing(select_variables)) variables <- c(variables, select_variables)
 
   APAC <- APAC %>%
     dplyr::select(tidyr::all_of(variables))
 
   if (clear_cache) {
-    if ("AQ" %in% read_bases)
-      rm(aq_df, aq_df_new)
-    if ("AR" %in% read_bases)
-      rm(ar_df, ar_df_new)
+    if ("AQ" %in% read_bases) rm(aq_df, aq_df_new)
+    if ("AR" %in% read_bases) rm(ar_df, ar_df_new)
     gc()
   }
 
@@ -265,10 +293,10 @@ read_apac <- function(read_bases = c("AQ", "AR"),
     tidyr::drop_na(proc)
   if (!missing(med_proced_to_remove))
     APAC <- APAC %>%
-    dplyr::filter(!(proc %in% med_proced_to_remove))
+      dplyr::filter(!(proc %in% med_proced_to_remove))
   if (!missing(selected_med_procedures))
     APAC <- APAC %>%
-    dplyr::filter(proc %in% selected_med_procedures)
+      dplyr::filter(proc %in% selected_med_procedures)
   record_n_2 <- nrow(APAC)
   patient_n_2 <- length(unique(APAC$cod_paciente))
 
@@ -290,14 +318,17 @@ read_apac <- function(read_bases = c("AQ", "AR"),
       # base
       ICD_base_table <- APAC %>%
         dplyr::count(Base, cid_prim) %>%
-        tidyr::pivot_wider(names_from = "cid_prim", values_from = "n")  #
+        tidyr::pivot_wider(names_from = "cid_prim", values_from = "n") #
 
       ICD_base_table_total <- APAC %>%
         dplyr::count(cid_prim) %>%
         tidyr::pivot_wider(names_from = "cid_prim", values_from = "n") %>%
         dplyr::mutate(Base = "Total")
 
-      ICD_base_table <- dplyr::bind_rows(ICD_base_table, ICD_base_table_total) %>%
+      ICD_base_table <- dplyr::bind_rows(
+        ICD_base_table,
+        ICD_base_table_total
+      ) %>%
         janitor::adorn_totals(c("col"))
 
       diag_list$ICD_base_table <- ICD_base_table
@@ -306,14 +337,25 @@ read_apac <- function(read_bases = c("AQ", "AR"),
       # (assuming that each patient code is equal to a
       # unique patient)
       unique_patient_code_table <- APAC %>%
+        dplyr::group_by(cod_paciente) %>%
+        dplyr::mutate(
+          n_bases = dplyr::n_distinct(Base),
+          Base = ifelse(n_bases == 1, Base, "AQ-AR")
+        ) %>%
+        dplyr::ungroup() %>%
         dplyr::group_by(Base) %>%
         dplyr::summarise(unique_patient_code = dplyr::n_distinct(cod_paciente))
 
       unique_patient_code_total <- APAC %>%
-        dplyr::summarise(unique_patient_code = dplyr::n_distinct(cod_paciente)) %>%
+        dplyr::summarise(
+          unique_patient_code = dplyr::n_distinct(cod_paciente)
+        ) %>%
         dplyr::mutate(Base = "Total")
 
-      unique_patient_code_table <- dplyr::bind_rows(unique_patient_code_table, unique_patient_code_total)
+      unique_patient_code_table <- dplyr::bind_rows(
+        unique_patient_code_table,
+        unique_patient_code_total
+      )
 
       diag_list$unique_patient_code_all <- unique_patient_code_table
 
@@ -324,9 +366,10 @@ read_apac <- function(read_bases = c("AQ", "AR"),
           -Base,
           -cid_prim,
           -cod_paciente,
-          -ano_diagnostico,-ano_atendimento
+          -ano_diagnostico,
+          -ano_atendimento
         ) %>%
-        dplyr::summarise_all( ~ (sum(is.na(.))))
+        dplyr::summarise_all(~ (sum(is.na(.))))
 
       variable_names <- names(
         APAC %>%
@@ -335,44 +378,72 @@ read_apac <- function(read_bases = c("AQ", "AR"),
             -cid_prim,
             -CID_completo,
             -cod_paciente,
-            -ano_diagnostico,-ano_atendimento
+            -ano_diagnostico,
+            -ano_atendimento
           )
       )
 
-      error_table <- data.frame(matrix(NA, 4, ncol(APAC) -
-                                         6))
+      error_table <- data.frame(matrix(
+        NA,
+        4,
+        ncol(APAC) -
+          6
+      ))
       names(error_table) <- variable_names
-      rownames(error_table) <- c("value_error",
-                                 "date_error",
-                                 "date_below_98",
-                                 "future_date")
+      rownames(error_table) <- c(
+        "value_error",
+        "date_error",
+        "date_below_98",
+        "future_date"
+      )
 
       if ("proc" %in% variable_names)
-        error_table$proc[1] <- sum(nchar(APAC$proc) !=
-                                     10 | is.na(as.numeric(APAC$proc)))
+        error_table$proc[1] <- sum(
+          nchar(APAC$proc) != 10 | is.na(as.numeric(APAC$proc))
+        )
       if ("data_diagnostico" %in% variable_names) {
         diagnotic_date <- as.Date(APAC$data_diagnostico, format = "%Y%m%d")
-        error_table$data_diagnostico[1] <- sum(nchar(APAC$data_diagnostico) !=
-                                                 8 | is.na(as.numeric(APAC$data_diagnostico)))
-        error_table$data_diagnostico[2] <- sum(is.na(as.Date(APAC$data_diagnostico, format = "%Y%m%d")))
-        error_table$data_diagnostico[3] <- sum(diagnotic_date <= as.Date("1998-01-01"))
-        error_table$data_diagnostico[4] <- sum(diagnotic_date >= most_recent_date$maxdate)
+        error_table$data_diagnostico[1] <- sum(
+          nchar(APAC$data_diagnostico) != 8 |
+            is.na(as.numeric(APAC$data_diagnostico))
+        )
+        error_table$data_diagnostico[2] <- sum(is.na(as.Date(
+          APAC$data_diagnostico,
+          format = "%Y%m%d"
+        )))
+        error_table$data_diagnostico[3] <- sum(
+          diagnotic_date <= as.Date("1998-01-01")
+        )
+        error_table$data_diagnostico[4] <- sum(
+          diagnotic_date >= most_recent_date$maxdate
+        )
       }
 
       if ("data_atendimento" %in% variable_names) {
-        service_date <- as.Date(paste0(APAC$data_atendimento, "01"), format = "%Y%m%d")
-        error_table$data_atendimento[1] <- sum(nchar(APAC$data_atendimento) !=
-                                                 6 | is.na(as.numeric(APAC$data_atendimento)))
+        service_date <- as.Date(
+          paste0(APAC$data_atendimento, "01"),
+          format = "%Y%m%d"
+        )
+        error_table$data_atendimento[1] <- sum(
+          nchar(APAC$data_atendimento) != 6 |
+            is.na(as.numeric(APAC$data_atendimento))
+        )
         error_table$data_atendimento[2] <- sum(is.na(as.Date(
-          paste0(APAC$data_atendimento, "01"), format = "%Y%m%d"
+          paste0(APAC$data_atendimento, "01"),
+          format = "%Y%m%d"
         )))
-        error_table$data_atendimento[3] <- sum(service_date <= as.Date("1998-01-01"))
-        error_table$data_atendimento[4] <- sum(service_date >= most_recent_date$maxdate)
+        error_table$data_atendimento[3] <- sum(
+          service_date <= as.Date("1998-01-01")
+        )
+        error_table$data_atendimento[4] <- sum(
+          service_date >= most_recent_date$maxdate
+        )
       }
 
       if ("cep_paciente" %in% variable_names)
-        error_table$cep_paciente[1] <- sum(nchar(APAC$cep_paciente) !=
-                                             8 | is.na(as.numeric(APAC$cep_paciente)))
+        error_table$cep_paciente[1] <- sum(
+          nchar(APAC$cep_paciente) != 8 | is.na(as.numeric(APAC$cep_paciente))
+        )
       if ("sexo" %in% variable_names)
         error_table$sexo[1] <- sum(!(APAC$sexo %in% c("F", "M")))
       if ("idade" %in% variable_names) {
@@ -404,11 +475,16 @@ read_apac <- function(read_bases = c("AQ", "AR"),
           age_code_non_numeric
       }
 
-      error_proportion <- format(round((
-        colSums(error_table, na.rm = TRUE) +
-          NA_column
-      ) / nrow(APAC) *
-        100, 2), nsmall = 2)
+      error_proportion <- format(
+        round(
+          (colSums(error_table, na.rm = TRUE) +
+            NA_column) /
+            nrow(APAC) *
+            100,
+          2
+        ),
+        nsmall = 2
+      )
 
       error_table_all <- rbind(
         missing_values = NA_column,
@@ -443,22 +519,24 @@ read_apac <- function(read_bases = c("AQ", "AR"),
         dplyr::arrange(CID_completo) %>%
         dplyr::left_join(icd_description, by = c(CID_completo = "cd_cid")) %>%
         dplyr::relocate(CID_completo, ds_cid) %>%
-        dplyr::mutate(CID_completo = ifelse(
-          nchar(CID_completo) >
-            3,
-          paste0(
-            substr(CID_completo, 1, 3),
-            ".",
-            substr(CID_completo, 4, 4)
-          ),
-          CID_completo
-        )) %>%
-        dplyr::mutate(CID_completo = ifelse(
-          nchar(CID_completo) ==
-            3,
-          paste0(CID_completo, ".x"),
-          CID_completo
-        )) %>%
+        dplyr::mutate(
+          CID_completo = ifelse(
+            nchar(CID_completo) > 3,
+            paste0(
+              substr(CID_completo, 1, 3),
+              ".",
+              substr(CID_completo, 4, 4)
+            ),
+            CID_completo
+          )
+        ) %>%
+        dplyr::mutate(
+          CID_completo = ifelse(
+            nchar(CID_completo) == 3,
+            paste0(CID_completo, ".x"),
+            CID_completo
+          )
+        ) %>%
         dplyr::mutate(CID_principal = substr(CID_completo, 1, 3)) %>%
         dplyr::relocate(CID_principal)
 
@@ -468,7 +546,9 @@ read_apac <- function(read_bases = c("AQ", "AR"),
 
       icd_ds_tbl <- icd_ds_tbl %>%
         dplyr::left_join(main_cid_total_tbl, by = c("CID_principal")) %>%
-        dplyr::mutate(CID_principal = paste0(CID_principal, " (Total = ", total, ")")) %>%
+        dplyr::mutate(
+          CID_principal = paste0(CID_principal, " (Total = ", total, ")")
+        ) %>%
         dplyr::select(-total)
 
       diag_list$icd_ds_tbl <- icd_ds_tbl
@@ -484,7 +564,6 @@ read_apac <- function(read_bases = c("AQ", "AR"),
       dplyr::count(proc, icd_group) %>%
       dplyr::arrange(desc(n)) %>%
       tidyr::pivot_wider(names_from = icd_group, values_from = n)
-
   } else {
     procedure_table <- APAC %>%
       dplyr::count(proc, cid_prim) %>%
@@ -493,8 +572,7 @@ read_apac <- function(read_bases = c("AQ", "AR"),
   }
 
   # Reorganize the table according to the number of CID codes
-  if (length(unique(APAC$cid_prim)) >
-      1) {
+  if (length(unique(APAC$cid_prim)) > 1) {
     procedure_table_all <- APAC %>%
       dplyr::count(proc) %>%
       dplyr::rename(Total = n)
@@ -510,24 +588,23 @@ read_apac <- function(read_bases = c("AQ", "AR"),
     dplyr::rename(procedure_code = proc) %>%
     data.frame()
 
-  if (run_diagnostics)
-    diag_list$procedure_table <- procedure_table
+  if (run_diagnostics) diag_list$procedure_table <- procedure_table
 
   if (export_procedure_table) {
     if (!is.na(procedures_filename)) {
       filename = procedures_filename
     } else {
-      if (is.na(file_code))
-        file_code <- "APAC"
-      filename = paste0(file_code,
-                        "_",
-                        first_year,
-                        "_",
-                        last_year,
-                        "_procedures.csv")
+      if (is.na(file_code)) file_code <- "APAC"
+      filename = paste0(
+        file_code,
+        "_",
+        first_year,
+        "_",
+        last_year,
+        "_procedures.csv"
+      )
     }
-    if (!silent)
-      message(paste0("Writing: ", paste0(dir, filename)))
+    if (!silent) message(paste0("Writing: ", paste0(dir, filename)))
     readr::write_csv(procedure_table, file = paste0(dir, filename))
   }
   if (run_diagnostics) {

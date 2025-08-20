@@ -177,7 +177,7 @@ str(apac, max.level = 1)
 #>   $ diag_list:List of 7
 ```
 
-#### 5.1.1. Quality evaluation
+### 5.1.1. Extracted APACs
 
 The total number of APACs in the dataset is:
 
@@ -187,6 +187,36 @@ n_apac_total <- nrow(apac$APAC)
 
 ```{r p_n_apac , eval=TRUE}	
 n_apac_total
+```
+
+The table bellow shows the number of records before and after applying a filter to remove APACs with non-interested procedures. In this example we decided not to exclude any procedure 
+from the analyses. However, it is recommended  that procedures that are not appropriate for the cancer under study be excluded due to potential errors.
+If a vector with list of procedures was not provided in the med_proced_to_remove argument of the read_apac function the dif column will be zero.
+
+```{r proc_table}	
+table_procedures <- apac$diag_list$proc_diag_table
+```
+
+```{r p_proc_table , eval=TRUE}
+table_procedures
+```
+
+The table bellow shows the number of APACs by procedure type. 
+```{r table_procedure}
+table_proced_total <- apac$diag_list$procedure_table
+```
+
+```{r p_table_procedure, eval=TRUE}	
+head(table_proced_total,5)
+```
+
+The table bellow shows the number of APACs by ICD category. It is useful for understanding the distribution of APACs by ICD.
+
+```{r table_icd}
+table_icd <- apac$diag_list$icd_ds_tbl
+```
+```{r p_table_icd, eval=TRUE}	
+table_icd
 ```
 
 The table bellow shows the number of APACs by ICD and SIA database. It is useful for understanding the distribution of APACs by ICD and SIA database. The table also 
@@ -207,15 +237,7 @@ table_icd_sia <- apac$diag_list$ICD_base_table %>%
 table_icd_sia
 ```
 
-The table bellow shows the number of unique CNS numbers. It is useful for identifying the number of unique patients and for understanding the distribution of patients by CNS 
-and SIA database.
-
-```{r table_cns}
-table_cns_sia <- apac$diag_list$unique_patient_code_all
-```
-```{r p_table_cns, eval=TRUE}	
-table_cns_sia
-```
+#### 5.1.2. Quality evaluation
 
 The table bellow shows the data completeness and accuracy of the APAC dataset created. It is useful for identifying the number of records with missing or inconsistent data and 
 for understanding the quality of the data.
@@ -251,35 +273,16 @@ table_year <- apac$diag_list$dates_year_table %>%
 head(table_year)
 ```
 
-The table bellow shows the number of APACs by ICD category. It is useful for understanding the distribution of APACs by ICD.
+### 5.1.3. Count of patients by unique CNS codes
 
-```{r table_icd}
-table_icd <- apac$diag_list$icd_ds_tbl
+The table bellow shows the number of unique CNS numbers. It is useful for identifying the number of unique patients and for understanding the distribution of patients by CNS 
+and SIA database.
+
+```{r table_cns}
+table_cns_sia <- apac$diag_list$unique_patient_code_all
 ```
-```{r p_table_icd, eval=TRUE}	
-table_icd
-```
-
-The table bellow shows the number of APACs by procedure type. In this example we decided not to exclude any procedure from the analyses. However, it is recommended 
-that procedures that are not appropriate for the cancer under study be excluded due to potential errors.
-
-```{r table_procedure}
-table_proced_total <- apac$diag_list$procedure_table
-```
-
-```{r p_table_procedure, eval=TRUE}	
-head(table_proced_total,5)
-```
-
-The table bellow shows the number of records before and after applying a filter to remove APACs with non-interested procedures. 
-If a vector with list of procedures was not provided in the med_proced_to_remove argument of the read_apac function the dif column will be zero.
-
-```{r proc_table}	
-table_procedures <- apac$diag_list$proc_diag_table
-```
-
-```{r p_proc_table , eval=TRUE}
-table_procedures
+```{r p_table_cns, eval=TRUE}	
+table_cns_sia
 ```
 
 ### 5.2. Unify Records with the same CNS Number
@@ -461,7 +464,9 @@ str(apac_merged, max.level = 1)
 The table bellow shows the number of duplicates CNS numbers by patient. 
 
 ```{r table_dup_cns}
-table_dup_cns <- apac_merged$cns_count
+table_dup_cns <- apac_merged$cns_count %>%
+    mutate(p = paste0(format(round(n / sum(n) * 100, 2), nsmall = 2), "%")) %>%
+    mutate(p = gsub("0.00\\%", "<0.01\\%", p))
 ```
 
 ```{r p_table_dup_cns , eval=TRUE}

@@ -47,9 +47,15 @@ prepare_linkage <- function(APAC_table, run_diagnostics = TRUE) {
       dplyr::mutate(
         sexo_NA = paste0(round((total - sexo_NA) / total * 100, 0), "%"),
         CEP5_NA = paste0(round((total - CEP5_NA) / total * 100, 0), "%"),
-        ano_nasc_calc_NA = paste0(round((total - ano_nasc_calc_NA) /
-                                          total * 100, 0
-        ), "%")
+        ano_nasc_calc_NA = paste0(
+          round(
+            (total - ano_nasc_calc_NA) /
+              total *
+              100,
+            0
+          ),
+          "%"
+        )
       ) %>%
       dplyr::select(-total)
   }
@@ -57,9 +63,12 @@ prepare_linkage <- function(APAC_table, run_diagnostics = TRUE) {
   # All patients with missing in CEP5 will have their values for CEP5
   # replaced by CEPNA1, CEP5_NA2, etc.
   for (var in lista_chave2) {
-    if (sum(is.na(APAC_table[, var])) >
-        0) {
-      APAC_table[is.na(APAC_table[, var]), var] <- paste0(var, "NA", 1:sum(is.na(APAC_table[, var])))
+    if (sum(is.na(APAC_table[, var])) > 0) {
+      APAC_table[is.na(APAC_table[, var]), var] <- paste0(
+        var,
+        "NA",
+        1:sum(is.na(APAC_table[, var]))
+      )
     }
   }
 

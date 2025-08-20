@@ -19,7 +19,7 @@ library(janitor)
 library(tidyverse)
 library(plotly)
 
-load("exported_data/apac_pancreas_analysis.RData")
+load("../data/exported_data/apac_pancreas_analysis.RData")
 # Check the directory where the file 'exported_data/apac_pancreas_analysis.RData' is saved and adjust the path accordingly.
 ```
 
@@ -31,7 +31,7 @@ The following criteria were used to select the records (patients) for the analys
 
 * Data source: Outpatient Information System  (SIASUS);
 * Date of data extraction: 2024-11-28;
-* Period of data extraction: Records processed between 2008 to 20203;
+* Period of data extraction: Records processed between 2008 to 2023;
 * Period of analyses: patients diagnosed between 2008 to 2022;
 * ICD code: C25  Malignant neoplasm of pancreas.
 
@@ -100,6 +100,37 @@ ggplotly(plot_treat, tooltip = c("x", "y", "customdata")) %>%
 
 The number of APACs extracted was **`r n_apac_total`**. 
 
+The following table presents the number of APACs and the corresponding number of CNSs before and after applying filter by procedure of non-interest. APACs without procedure codes are also excluded and appear in the table below as *'Missing Data'*. Note that in this analysis we chose to include all procedures.
+
+```{r table_procedures, echo = FALSE}
+rownames(table_procedures) <- c("APACs", "Unique codes", "Missing data")
+
+table_procedures %>%
+  kbl(col.names = c("Before", "After", "Diference")) %>%
+  kable_paper("hover", full_width = F)
+```
+The number of APACs of selected procedures was **`r table_procedures$after[1] `**
+
+The table below presents the number of procedures performed in the APACs by ICD code, considering all selected procedures performed in the period of analysis.
+
+```{r table_procedures_performed, echo = FALSE}	
+columns_to_center <- c(0, 2:(ncol(table_proced_total) - 1))
+
+table_proced_total %>%
+  datatable(
+    rownames = FALSE,
+    colnames = c("Procedure", "Description", colnames(table_proced_total)[3]),
+    options = list(
+      pageLength = 10,
+      dom = "tlpi",
+      columnDefs = list(list(
+        className = "dt-center", targets = columns_to_center
+      ))
+    )
+  )
+```
+
+
 The ICD codes included in the analysis are presented in the table below. Observe that ICD code ended with ".x" indicates that last digit of the code was not recorded in the APAC.
 
 ```{r icd_table, echo = FALSE}
@@ -111,16 +142,6 @@ table_icd %>%
 # auto_pack_rows is a function from 'OncoDatasusR' package. For more information, see the documentation.
 ```
 
-The following table presents the number of APACs and the corresponding number of CNSs before and after applying filter by procedure of non-interest. APACs without procedure codes are also excluded and appear in the table below as *'Missing Data'*. Note that in this analysis we chose to include all procedures.
-
-```{r table_procedures, echo = FALSE}
-rownames(table_procedures) <- c("APACs", "Unique codes", "Missing data")
-
-table_procedures %>%
-  kbl(col.names = c("Before", "After", "Diference")) %>%
-  kable_paper("hover", full_width = F)
-```
-
 The table below shows the number of APACs by database (AQ and AR) and primary ICD (considering only the first three digits). This table is useful when the analysis involves more than one ICD.
 
 ```{r icd_sia_table, echo = FALSE}
@@ -129,17 +150,7 @@ table_icd_sia %>%
   kable_paper("hover", full_width = F)  
 ```
 
-## 3.2. Count of Patients by Unique CNS Codes
-
-The Number of unique CNS codes identified was **`r n_before_deduplication`**
-
-The table below presents the total number of CNS codes (variable AP_CNSPCN_ENC64) by procedure type (AQ or AR).Note that the total will be smaller than the sum of each dataset as the same CNS may have had APAC of AQ and AR.
-
-```{r table_cns, echo = FALSE}
-table_cns_sia %>%
-  kbl(col.names = c("Database", "Unique codes")) %>%
-  kable_paper("hover", full_width = F)
-```
+## 3.2. Data Quality
 
 The table below presents some statistics to evaluate completeness, errors and inconsistencies in the dataset.
 
@@ -179,24 +190,33 @@ table_year %>%
 
 A total of **`r total_dt_error`** CNS codes were found with year of diagnosis prior to 1998 (10 years before de first year of interest). Using the rule of second smallest diagnosing date, it was possible to recover coherent dates for **`r total_replaced_diag_dt`** CNS codes.
 
-The table below presents the number of procedures performed in the APACs by ICD code, considering all procedures performed in the period of analysis.
+The table below provides the number and proportion of CNS with different diagnosis dates, as well as the number of APACs associated with these CNS codes.
 
-```{r table_procedures_performed, echo = FALSE}	
-columns_to_center <- c(0, 2:(ncol(table_proced_total) - 1))
-
-table_proced_total %>%
-  datatable(
-    rownames = FALSE,
-    colnames = c("Procedure", "Description", colnames(table_proced_total)[3]),
-    options = list(
-      pageLength = 10,
-      dom = "tlpi",
-      columnDefs = list(list(
-        className = "dt-center", targets = columns_to_center
-      ))
-    )
-  )
+```{r table_incons_date, echo = FALSE}
+table_inconsist_date %>%
+  kbl(
+    col.names = c(
+      "Different diagnosis dates",
+      "Patients (CNS)",
+      "APAC",
+      "Patients (CNS)",
+      "APAC"
+    ),
+    align = "ccccc"
+  ) %>%
+  add_header_above(c(
+    ` ` = 1,
+    `Nº of records` = 2,
+    `Proportion (%)` = 2
+  )) %>%
+  kable_paper("hover", full_width = F)
 ```
+
+It is important to note that no records are excluded in this step. This analysis is only for descriptive purposes and to provide information on the quality of the data.
+
+## 3.3. Count of Patients by Unique CNS Codes
+
+The Number of unique CNS codes identified among the **`r table_procedures$after[1]`** selected APACs was **`r n_before_deduplication`**.
 
 The chart below shows the number of APACs by CNS code. Hover over the bars to see the detailed results.
 
@@ -221,29 +241,15 @@ table_apac_cns %>%
   )
 ```
 
-The table below provides the number and proportion of CNS with different diagnosis dates, as well as the number of APACs associated with these CNS codes.
+The table below presents the total number of CNS codes (variable AP_CNSPCN_ENC64) by procedure type (AQ or AR).Note that the total will be smaller than the sum of each dataset as the same CNS may have had APAC of AQ and AR.
 
-```{r table_incons_date, echo = FALSE}
-table_inconsist_date %>%
-  kbl(
-    col.names = c(
-      "Different diagnosis dates",
-      "Patients (CNS)",
-      "APAC",
-      "Patients (CNS)",
-      "APAC"
-    ),
-    align = "ccccc"
-  ) %>%
-  add_header_above(c(
-    ` ` = 1,
-    `Nº of records` = 2,
-    `Proportion (%)` = 2
-  )) %>%
+```{r table_cns, echo = FALSE}
+table_cns_sia %>%
+  kbl(col.names = c("Database", "Unique codes")) %>%
   kable_paper("hover", full_width = F)
 ```
 
-## 3.3. Analysis of Potential Duplicates
+## 3.4. Analysis of Potential Duplicates
 
 Assuming that a patient may have more than one CNS number, this stage involves searching for CNS codes that share the same information across key variables: first five digits of the postal code (ZIP5), ICD code, sex, diagnosis date, and 
 year of birth.
@@ -270,7 +276,7 @@ table_dup_cns %>%
 * Absolute reduction in the number of unique codes: **`r n_before_deduplication - n_after_deduplication` records**
 * Relative reduction compared to the dataset size: **`r var_linkage`%**
 
-### 3.3.3. Final Adjustments
+## 3.5. Final Adjustments
 
 Patients excluded due to:
 

@@ -54,15 +54,16 @@ The analysis of the this scenario identified **`r n_patients_zip_true`** unique 
 ```{r descriptive_table, echo = FALSE}
 patient_table_zip_true %>%
   select(-row_names) %>%
-  kable(align = c("l", "c"), col.names = c("", paste0("n = ", n_patients_zip_true))) %>% # add n patients to the 'Total' column
-        add_header_above(c("Variable", "Total"),
-                         bold = TRUE,
-                         align = c("l", "c")) %>%
-          kable_classic() %>%
-          kableExtra::group_rows("Age Years", 1, 5) %>%
-          kableExtra::group_rows("Sex", 6, 6) %>%
-          kableExtra::group_rows("Region", 7, 11) %>%
-          kable_paper(full_width = F, "hover")
+  kable(
+    align = c("l", "c"),
+    col.names = c("", paste0("n = ", n_patients_zip_true))
+  ) %>% # add n patients to the 'Total' column
+  add_header_above(c("Variable", "Total"), bold = TRUE, align = c("l", "c")) %>%
+  kable_classic() %>%
+  kableExtra::group_rows("Age Years", 1, 5) %>%
+  kableExtra::group_rows("Sex", 6, 6) %>%
+  kableExtra::group_rows("Region", 7, 11) %>%
+  kable_paper(full_width = F, "hover")
 ```
 
 ## 2.2. Distribution of Patients by Year of First Hospitalization
@@ -76,6 +77,44 @@ ggplotly(plot_sih_zip_true, tooltip = c("x", "y", "customdata")) %>%
       "<b>Year:</b> %{x}<br>",
       "<b>N of patients:</b> %{y:.0f}<br>",
       "<extra></extra>"
+    )
+  )
+```
+
+## 2.3. Distribution of Patients by Top 4 Procedures
+
+The figure below presents the distribution of patients by the top 4 procedures performed in the study period.
+
+```{r , fig.width=8, echo = FALSE}
+ggplotly(plot_proced_sih_zip_true, tooltip = c("x", "y", "customdata")) %>%
+  style(
+    hovertemplate = paste(
+      "<b>Year:</b> %{x}<br>",
+      "<b>N of patients:</b> %{y:.0f}<br>",
+      "<b>Procedure:</b> %{customdata}<br>",
+      "<extra></extra>"
+    )
+  ) %>%
+  layout(
+    legend = list(
+      orientation = "h",
+      x = 0.5,
+      y = -0.2,
+      title = list(text = "<b>Procedure</b>", font = list(size = 13)),
+      xanchor = "center",
+      yanchor = "top"
+    ),
+    xaxis = list(
+      title = list(
+        text = "<b>Year of diagnosis</b>",
+        font = list(size = 14)
+      )
+    ),
+    yaxis = list(
+      title = list(
+        text = "<b>Number of unique patients</b>",
+        font = list(size = 14)
+      )
     )
   )
 ```
@@ -108,8 +147,10 @@ The table below shows the number of AIHs by primary ICD. The primary ICD include
 
 ```{r icd_aih_table, echo = FALSE}
 table_aih_icd %>%
-  auto_pack_rows(grouping_column = "CID_principal",
-                 col.names = c("ICD", "Description", "n")) %>%
+  auto_pack_rows(
+    grouping_column = "CID_principal",
+    col.names = c("ICD", "Description", "n")
+  ) %>%
   kable_paper("hover", full_width = F)
 ```
 
@@ -121,9 +162,10 @@ table_aih_year %>%
     colnames = c("Year of hospitalization", "AIHs"),
     options = list(
       pageLength = 6,
-      dom = 'tlpi',
+      dom = "tlpi",
       columnDefs = list(list(
-        className = 'dt-center', targets = 0:2
+        className = "dt-center",
+        targets = 0:2
       ))
     )
   )
@@ -135,7 +177,7 @@ The table below presents the procedures performed by ICD of interest, considerin
 colnames(table_proced_aih)[1:2] <- c("Procedure", "Description")
 
 table_proced_aih %>%
-  datatable(options = list(pageLength = 10, dom = 'tlpi'))
+  datatable(options = list(pageLength = 10, dom = "tlpi"))
 ```
 
 Patients excluded due to:
