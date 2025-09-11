@@ -42,8 +42,22 @@ retrieve_filelist <- function(database,
   all_files_string <- RCurl::getURL(FTP_URL, dirlistonly = TRUE)
   all_files_list <- strsplit(all_files_string, "\r\n")[[1]]
 
+
+    all_files_list   <- strsplit(all_files_string, "\n")[[1]]
+  all_files_list   <- trimws(gsub("\r", "", all_files_list))  # remove CR & spaces
+  all_files_list   <- all_files_list[nzchar(all_files_list)]  # remove empty
+  
+  # filter DB (default SIASUS: {DB}{UF}{YYMM}.dbc)
+  selected_files <- grep(
+    sprintf("^%s[A-Z]{2}\\d{4}\\.dbc$", toupper(database)),
+    all_files_list,
+    value = TRUE
+  )
+
+
+  
   # Filter only the selected database if the name starts with database
-  selected_files <- all_files_list[grepl(paste0("^", database), all_files_list)]
+  #selected_files <- all_files_list[grepl(paste0("^", database), all_files_list)]
 
   # Filter only the specified years - Filename pattern: '{DB}{FU}{YYMM}.dbc'
   selected_files <- selected_files[sapply(selected_files, function(x)
